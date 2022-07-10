@@ -1,0 +1,49 @@
+[project]
+name = "timesheet_rheslin"
+version = "0.0.1"
+authors = [
+  { name="Ryan Heslin", email="rwheslin@gmail.com" },
+]
+description = "Command-line utility to track hours worked"
+long_description = "file: README.md"
+long_description_content_type = "text/markdown"
+url = "https://github.com/pypa/timesheet-rheslin"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/pypa/timesheet"
+"Bug Tracker" = "https://github.com/pypa/timesheet/issues"
+[options]
+package_dir = "timesheet"
+packages = "find:"
+[options.entry_points]
+[console_scripts]
+command = "Timesheet.src.command:timesheet"
+[options.packages.find]
+where = "timesheet"
+[tool.poetry]
+name = "timesheet"
+version = "0.1.0"
+description = ""
+authors = ["ryan-heslin <rwheslin@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+click = "^8.1.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+command = 'timesheet.command:timesheet'
