@@ -1,4 +1,5 @@
 import click
+import datetime
 
 from timesheet import constants
 from timesheet import Timesheet
@@ -77,21 +78,30 @@ def create(
         )
     return 0
 
+@click.option("--timestamps", "-t",  help=constants.HELP_MAP["timestamps"], multiple = True, default = [])
 @click.option("--verbose/--silent", help=constants.HELP_MAP["verbose"], default=False)
-@click.option("--timestamps", help=constants.HELP_MAP["timestamps"], default=[])
+@click.option("--date", help = constants.HELP_MAP["date"], default = None)
 @timesheet.command(name="append", cls=locate_timesheet)
-def append(storage_name, storage_path, timestamps, verbose=False):
-    instance = Timesheet.Timesheet.load(storage_name=storage_name, storage_path=storage_path)
-    instance.add_timestamps(timestamps)
+def append(storage_name, storage_path, timestamps = [], verbose=False, date = None):
+    date = datetime.date.today() if date is None else date
+
+    if timestamps == []: 
+        timestamps = None
+    else:
+        timestamps = list(filter(datetime.time.fromisoformat, timestamps))
+    instance = Timesheet.Timesheet.load( storage_name=storage_name, storage_path=storage_path)
+    instance.add_timestamps(date = date, timestamps = timestamps)
     if verbose:
-        click.echo(f"Added {timestamps!r} to Timesheet {storage_name} ")
+        click.echo(f"Added {timestamps!r} to Timesheet {storage_name!r} ")
     return 0
 
 
 @click.option(("--date"), help=constants.HELP_MAP["date"], default=None)
 @timesheet.command(name="summarize", cls=locate_timesheet)
+#@ckick.pass_context
 # TODO check if these inherit defaults
 def summarize(storage_name, storage_path, date=None):
+    # @storage_name.forward(locate_timesheet)
     instance = locate_timesheet_impl(
         storage_name=storage_name, storage_path=storage_path
     )
@@ -117,7 +127,7 @@ def jsonify(storage_name, storage_path = constants.STORAGE_PATH, json_path = Non
 
 @click.option("--confirm", help=constants.HELP_MAP["confirm"], default=True)
 @timesheet.command(name="delete", cls=locate_timesheet)
-def delete(storage_name, storage_path):
+def delete(storage_name, storage_path, confirm = True):
     instance = Timesheet.Timesheet.load(storage_name=storage_name, storage_path=storage_path)
     Timesheet.Timesheet.delete(storage_name=storage_name, path=storage_path)
 
@@ -126,16 +136,8 @@ def delete(storage_name, storage_path):
 @timesheet.command()
 @click.option("--storage_path", default =  constants.STORAGE_PATH, help = constants.HELP_MAP["storage_path"])
 def list(storage_path = constants.STORAGE_PATH): 
-    f = utils.use_shelve_file(func = lambda f: f, path = storage_path)
+    f = utils.use_shelve_file(func = lambda f: {k :v for k, v in f.items()}, path = storage_path)
     for k, v in f.items(): 
         print(f"{k}:")
         print(v)
-# Delete selected timesheet
-# Storage name
-# Storage path
 
-# timesheet.add_command(create)
-# timesheet.add_command(summarize)
-# timesheet.add_command(append)
-# timesheet.add_command(delete)
-# timesheet()

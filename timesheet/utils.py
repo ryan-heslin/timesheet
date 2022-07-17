@@ -52,6 +52,8 @@ def use_shelve_file(
     func, storage_name: str = None, path: str = None, confirm_prompt: str = None
 ) -> Any:
     path = f"{constants.STORAGE_PATH}" if path is None else path
+    if not exists(path): 
+        raise FileNotFoundError(f"{path!r} does not exist")
     with shelve.open(path) as f:
         if storage_name is not None and not f.get(storage_name):
             raise KeyError(f"{storage_name!r} is not a valid key for {path!r}")

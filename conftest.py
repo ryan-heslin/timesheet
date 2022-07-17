@@ -99,6 +99,18 @@ class Helpers:
         """Create empty file"""
         open(path, "a").close()
 
+    #TODO coroutine
+    @staticmethod 
+    def test_path(*args): 
+        return "/".join(str(arg) for arg in [*args])
+
+    @staticmethod
+    def make_paths(tmp_path, *args):
+        #while [*args]:
+        return [__class__.test_path(tmp_path, x) for x in [ *args ]]
+        #    yield from [__class__.test_path(tmp_path, x) for x in [ *args ]]
+
+
 
 @pytest.fixture
 def helpers():

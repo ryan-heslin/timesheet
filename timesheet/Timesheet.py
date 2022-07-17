@@ -251,7 +251,7 @@ class Timesheet:
             return
         target = dirname(path)
         if not access(target, W_OK):
-            print("You lack write permission for directory {target}")
+            print(f"You lack write permission for directory {target}")
             return
         if not exists(target):
             if create_directory:
@@ -308,7 +308,7 @@ class Timesheet:
         )
 
     def add_timestamps(
-        self, date: datetime.date = None, timestamps: List[datetime.datetime] = None
+        self, date: Union[datetime.date, str] = None, timestamps: List[datetime.datetime] = None
     ) -> None:
         date = datetime.datetime.today() if date is None else date
         timestamps = (
@@ -316,6 +316,8 @@ class Timesheet:
             if timestamps is None or timestamps == []
             else timestamps
         )
+        # If passed as string, coerce first to common formate
+        date = datetime.date.fromisoformat(date) if type(date) is str else date
         datestamp = DayLog.yyyymmdd(date)
         data = self.record.get(datestamp)
         # If a DayLog object exists for this day, add timestamp to it. Otherwise, create a new one, with the current time as an initial timestamp
@@ -323,6 +325,7 @@ class Timesheet:
             self.record[datestamp] = DayLog(timestamps=timestamps)
         else:
             data.add_timestamps(timestamps)
+        self.save()
 
     def __getitem__(self, k: str) -> DayLog:
         return self.record[k]
