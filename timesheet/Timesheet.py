@@ -228,7 +228,7 @@ class Timesheet:
             self.storage_name = arg_name
             
         if kwargs.get( "save" ):
-            self.save()
+            self.save(overwrite=True)
 
     def __str__(self) -> str:
         return f"""A Timesheet object created {self.creation_time}
@@ -251,7 +251,7 @@ class Timesheet:
             return
         target = dirname(path)
         if not access(target, W_OK):
-            print("You lack write permission for directory {target}")
+            print(f"You lack write permission for directory {target}")
             return
         if not exists(target):
             if create_directory:
@@ -308,7 +308,7 @@ class Timesheet:
         )
 
     def add_timestamps(
-        self, date: datetime.date = None, timestamps: List[datetime.datetime] = None
+        self, date: Union[datetime.date, str] = None, timestamps: List[datetime.datetime] = None
     ) -> None:
         date = datetime.datetime.today() if date is None else date
         timestamps = (
@@ -316,6 +316,8 @@ class Timesheet:
             if timestamps is None or timestamps == []
             else timestamps
         )
+        # If passed as string, coerce first to common formate
+        date = datetime.date.fromisoformat(date) if type(date) is str else date
         datestamp = DayLog.yyyymmdd(date)
         data = self.record.get(datestamp)
         # If a DayLog object exists for this day, add timestamp to it. Otherwise, create a new one, with the current time as an initial timestamp
@@ -323,6 +325,7 @@ class Timesheet:
             self.record[datestamp] = DayLog(timestamps=timestamps)
         else:
             data.add_timestamps(timestamps)
+        self.save(overwrite=True)
 
     def __getitem__(self, k: str) -> DayLog:
         return self.record[k]
@@ -354,33 +357,41 @@ class Timesheet:
         with open(path, "w") as f:
             json.dump(self.record, f, default=utils.json_serialize)
 
-    def summarize(self, date: Union[datetime.date, str] = None) -> Dict[str, float]:
+    def summarize(self, date: Union[datetime.date, str] = None ) -> Dict[str, float]:
+        """Sum hours worked for a given week"""
         # Date can be any date in the target week
         parsed = date
         if isinstance(parsed , str):
             parsed : datetime.date = datetime.date.fromisoformat(parsed)
         elif parsed is None:
-            parsed  : datetime.date= datetime.date.today()
+            parsed  : datetime.date = datetime.date.today()
         else:
             parsed  : datetime.date= date
 
         calendar = parsed.isocalendar()
+
         # Weeks start on Monday, indexed 1
         days_into_week = datetime.timedelta(days=calendar[2] - 1)
         cur_date = parsed - days_into_week
         one_day = datetime.timedelta(days=1)
         # datestamps = [None] * constants.DAYS_IN_WEEK
         out = {}
-        dummy = DayLog()
         for __ in range(constants.DAYS_IN_WEEK):
             next_date = cur_date + one_day
             cur_datestamp = DayLog.yyyymmdd(cur_date)
             # If no date exists for this day (implying no hours worked), set value to 0
-            hours = self.record.get(cur_datestamp, dummy).sum_times()
+            hours = self.record.get(cur_datestamp, DayLog()).sum_times()
             out[cur_datestamp] = hours
             cur_date = next_date
 
+
         return out
+
+    def write_json_summary(self, json_path : str, date: Union[datetime.date, str] = None) -> None:
+        """Compute summary and save as JSON instead of returning a dict"""
+        summary = self.summarize(date = date)
+        with open(json_path, "w") as f:
+            json.dump(summary, f)
 
     def write_year_csv(self, path : str):
         # TODO: allow aggregation of all data by week, in addition to targeting 

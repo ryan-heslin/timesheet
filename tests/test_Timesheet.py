@@ -86,23 +86,23 @@ def test_list(helpers, tmp_path):
 
 
 def test_summarize(helpers):
+    """Check that `summarize` correctly reports hours worked each day"""
     test = helpers.Timesheet(data=helpers.daylog_data)
 
     # Test for all days in week
     assert all(
-        test.summarize(
-            date=datetime.date(
-                year=2022, month=6 + (i + 27 > 30), day=(27 + i) % 31 + (i + 27 > 30)
-            )
-        )
-        == {
-            "2022-06-27": 1.5,
-            "2022-06-28": 0,
-            "2022-06-29": 5 / 6,
-            "2022-06-30": 0,
-            "2022-07-01": 0,
-            "2022-07-02": 0,
-            "2022-07-03": 0,
-        }
-        for i in range(timesheet.constants.DAYS_IN_WEEK)
+            result == helpers.expected_day_times for result in
+        helpers.example_summarize(test)
     )
+
+def test_write_summary(): 
+    def test_summarize(helpers):
+        """Check that `write_json_summary` correctly  writes JSON files of the results"""
+        test = helpers.Timesheet(data=helpers.daylog_data)
+
+        # Test for all days in week
+        assert all(
+                result == helpers.expected_day_times for result in
+            helpers.example_summarize(test)
+        )
+

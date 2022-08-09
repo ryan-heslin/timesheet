@@ -10,6 +10,7 @@ from io import StringIO
 import pytest
 
 from timesheet import Timesheet
+from timesheet import constants
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "Timesheet"))
 
@@ -31,6 +32,19 @@ class Helpers:
         datetime.time(1, 0, 1, 0),
         datetime.time(2, 1, 1, 1),
     ]
+    extra_timestamps = [ 
+            datetime.time(3, 0, 0 ,0), 
+            datetime.time(23, 59, 59, 999)]
+    # Result of summarizing wee
+    expected_day_times = {
+            "2022-06-27": 1.5,
+            "2022-06-28": 0,
+            "2022-06-29": 5 / 6,
+            "2022-06-30": 0,
+            "2022-07-01": 0,
+            "2022-07-02": 0,
+            "2022-07-03": 0,
+        }
     daylog_data = {
         "2022-06-27": DayLog(
             timestamps=[
@@ -99,7 +113,33 @@ class Helpers:
         """Create empty file"""
         open(path, "a").close()
 
+    #TODO coroutine
+    @staticmethod 
+    def test_path(*args): 
+        return "/".join(str(arg) for arg in [*args])
 
+    @staticmethod
+    def make_paths(tmp_path, *args):
+        #while [*args]:
+        return [__class__.test_path(tmp_path, x) for x in [ *args ]]
+        #    yield from [__class__.test_path(tmp_path, x) for x in [ *args ]]
+    @staticmethod 
+    def timestamps_to_strings(timestamps : list ) -> str:
+        """Convert list of times to string argument"""
+        return " -t ".join(datetime.time.isoformat(ts) for ts in timestamps)
+
+    @staticmethod
+    def example_summarize(timesheet : "Timesheet", write_json = False) -> list:
+        """Get a list of summaries of the same week, called with varying arguments"""
+        method = "write_json_summary" if write_json else "summarize"
+        return [timesheet.summarize(
+            date=datetime.date(
+                year=2022, month=6 + (i + 27 > 30), day=(27 + i) % 31 + (i + 27 > 30)
+            )
+        )
+        for i in range(constants.DAYS_IN_WEEK)
+        ]
 @pytest.fixture
 def helpers():
     return Helpers
+
