@@ -136,10 +136,10 @@ class DayLog:
 
     def sum_times(self) -> float:
         n_timestamps = len(self)
+        # If 0 or 1 timestamps only, no difference to account for
         if n_timestamps < 2:
             time = datetime.timedelta(0)
         else:
-            # breakpoint()
             time = reduce(
                 lambda x, y: x + y,
                 (
@@ -175,7 +175,6 @@ class DayLog:
             __class__.microsecond_conversions[unit] * getattr(time, unit)
             for unit in __class__.microsecond_conversions.keys()
         )
-
 
 class Timesheet:
     def __init__(

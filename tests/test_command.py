@@ -10,6 +10,7 @@ ts = "./.venv/bin/timesheet"
 date = datetime.date.today().isoformat()
 
 
+
 def test_timesheet_installed():
     assert os.path.exists(ts)
 
@@ -22,8 +23,8 @@ def test_create_Timesheet(helpers, tmp_path):
     #assert len(instance) == 1 and len(instance.data.values()) == 1
 
 
+
 def test_jsonify(helpers, tmp_path):
-    """Test creating a JSON output from an instance, then converting the JSON back into an instance"""
     path, json_path = helpers.make_paths(tmp_path, "test", "test.json")
     os.system(
         f"{ts} create --json_path {json_path} --storage_path {path} --storage_name test"
@@ -32,7 +33,6 @@ def test_jsonify(helpers, tmp_path):
     os.system(
         f"{ts} create --json_source {json_path}  --storage_name test2 --storage_path {path}2"
     )
-    # breakpoint()
     first = helpers.Timesheet.load(storage_name="test", storage_path=path).record
     second = helpers.Timesheet.load(
         storage_name="test2", storage_path=f"{path}2"
@@ -79,7 +79,6 @@ def test_append_old_date(helpers, tmp_path):
     os.system(f"{ts} append -t {extra_strings} --storage_name timesheet1 --date {date} --storage_path {path}")
     instance = helpers.Timesheet.load(storage_name = "timesheet1", storage_path = path)
     assert instance[date].timestamps == timestamps+ extra_timestamps
-
 
     # Test for all days in week
 

@@ -1,6 +1,7 @@
 import datetime
 
 import click
+import datetime
 
 from timesheet import constants
 from timesheet import Timesheet
@@ -107,6 +108,7 @@ def append(storage_name : str, storage_path : str, timestamps : list =[str], ver
 @click.option(("--date"), help=constants.HELP_MAP["date"], default=None)
 @timesheet.command(name="summarize", cls=locate_timesheet)
 # @click.pass_context
+#@ckick.pass_context
 # TODO check if these inherit defaults
 def summarize(storage_name, storage_path, date=None):
     # @storage_name.forward(locate_timesheet)
@@ -137,8 +139,6 @@ def delete(storage_name, storage_path, confirm=True):
     instance = Timesheet.Timesheet.load(
         storage_name=storage_name, storage_path=storage_path
     )
-    Timesheet.Timesheet.delete(storage_name=storage_name, path=storage_path)
-
 
 # Show saved timesheets
 @timesheet.command()
