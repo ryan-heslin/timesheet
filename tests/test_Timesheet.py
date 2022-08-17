@@ -4,6 +4,9 @@ from os import getcwd
 from os import system
 
 import pytest
+import json
+import shelve
+import csv
 
 import timesheet.constants
 
@@ -68,12 +71,13 @@ def test_save(helpers, tmp_path):
 
 
 def test_delete(helpers, tmp_path):
+    """Tests that deletion without confirmation does nothing"""
     storage_path = f"{tmp_path}/test"
-    original = helpers.full_Timesheet(storage_name="test", storage_path=storage_path)
-    helpers.Timesheet.delete(path=storage_path, storage_name="test")
-    with pytest.raises(KeyError):
-        helpers.Timesheet.load(storage_name="test", storage_path=storage_path)
-
+    storage_name = "test"
+    original = helpers.full_Timesheet(storage_name=storage_name, storage_path=storage_path, save = True)
+    helpers.Timesheet.delete(storage_path=storage_path, storage_name=storage_name)
+    with shelve.open(storage_path) as f:
+        assert storage_name in f.keys()
 
 def test_list(helpers, tmp_path):
     storage_path = f"{tmp_path}/test"
@@ -82,7 +86,7 @@ def test_list(helpers, tmp_path):
     assert set(helpers.Timesheet.list(path=storage_path)) == {
         "test1",
         "test2",
-    }  # since key order is arbitrary
+    }  # since dict key order is arbitrary, use unordered set for comparison
 
 
 def test_summarize(helpers):
@@ -95,14 +99,34 @@ def test_summarize(helpers):
         helpers.example_summarize(test)
     )
 
-def test_write_summary(): 
-    def test_summarize(helpers):
-        """Check that `write_json_summary` correctly  writes JSON files of the results"""
-        test = helpers.Timesheet(data=helpers.daylog_data)
+def test_write_summary(helpers, tmp_path):
+    """Check that `write_json_summary` correctly  writes JSON files of the results"""
+    test = helpers.Timesheet(data=helpers.daylog_data)
+    json_path = f"{tmp_path}/test.json" 
+    # Ensure date in week
+    test.write_json_summary(date = next(iter(helpers.daylog_data.keys())), json_path = json_path )
+    with open(json_path) as f:
+        result = json.load(f)
+        assert result == helpers.expected_day_times
 
-        # Test for all days in week
-        assert all(
-                result == helpers.expected_day_times for result in
-            helpers.example_summarize(test)
-        )
+def test_write_csv(helpers, tmp_path):
+    """Test that an instance with data correctly writes to csv"""
+    output_path = f"{tmp_path}/test.csv"
+    instance = helpers.Timesheet(data = helpers.daylog_data, save = True, storage_path = f"{tmp_path}/timesheet")
+    instance.write_csv_summary(path = output_path)
+    with open(output_path) as f: 
+        reader = csv.reader(f)
+        read_data =  {date : float(hours) for date, hours in reader}
+        assert all (read_data[date] == helpers.expected_day_times[date] for date in read_data.keys()) 
+
+def test_write_empty_csv(helpers, tmp_path):
+    """Test that an instance with no recorded hours correctly writes to csv"""
+    output_path = f"{tmp_path}/test.csv"
+    instance = helpers.bare_Timesheet
+    instance.write_csv_summary(path = output_path)
+    with open(output_path) as f: 
+        reader = csv.reader(f)
+        read_data =  {date : float(hours) for date, hours in reader}
+        comparison = instance.summarize(date = min(instance.record.keys()))
+        assert all (read_data[date] == comparison[date] for date in read_data.keys()) 
 

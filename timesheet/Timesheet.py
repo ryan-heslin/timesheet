@@ -15,6 +15,7 @@ from typing import Dict
 from typing import List
 from typing import TypeVar
 from typing import Union
+import csv
 
 from timesheet import constants
 from timesheet import utils
@@ -176,6 +177,7 @@ class DayLog:
             for unit in __class__.microsecond_conversions.keys()
         )
 
+
 class Timesheet:
     def __init__(
         self,
@@ -213,20 +215,20 @@ class Timesheet:
             else constants.STORAGE_PATH
         )
         # Generate default storage name if none provided
-        if ( arg_name :=kwargs["storage_name"] ) is None:
+        if (arg_name := kwargs["storage_name"]) is None:
             if exists(self.storage_path):
                 used_names = utils.use_shelve_file(
-                                storage_name=None,
-                                func=lambda f: [k for k in f],
-                                path=self.storage_path
-                            )
-            else: 
+                    storage_name=None,
+                    func=lambda f: [k for k in f],
+                    path=self.storage_path,
+                )
+            else:
                 used_names = []
-            self.storage_name = self._default_name(names = used_names, extension = "")
-        else: 
+            self.storage_name = self._default_name(names=used_names, extension="")
+        else:
             self.storage_name = arg_name
-            
-        if kwargs.get( "save" ):
+
+        if kwargs.get("save"):
             self.save(overwrite=True)
 
     def __str__(self) -> str:
@@ -285,16 +287,18 @@ class Timesheet:
         )
 
     @staticmethod
-    def delete(storage_name: str, path: str = None, confirm: bool = True) -> None:
+    def delete(
+        storage_name: str, storage_path: str = None, confirm: bool = True
+    ) -> None:
         confirm_prompt = (
             "Press enter to confirm deletion, any other key to abort"
-            if confirm and utils.is_interactive()
+            if confirm
             else None
         )
         utils.use_shelve_file(
             storage_name=storage_name,
             func=lambda f: f.pop(storage_name),
-            path=path,
+            path=storage_path,
             confirm_prompt=confirm_prompt,
         )
 
@@ -307,7 +311,9 @@ class Timesheet:
         )
 
     def add_timestamps(
-        self, date: Union[datetime.date, str] = None, timestamps: List[datetime.datetime] = None
+        self,
+        date: Union[datetime.date, str] = None,
+        timestamps: List[datetime.datetime] = None,
     ) -> None:
         date = datetime.datetime.today() if date is None else date
         timestamps = (
@@ -351,52 +357,61 @@ class Timesheet:
             path = (
                 self.json_path
                 if self.json_path is not None
-                else self._default_name(names = listdir("."), extension=".json")
+                else self._default_name(names=listdir("."), extension=".json")
             )
         with open(path, "w") as f:
             json.dump(self.record, f, default=utils.json_serialize)
 
-    def summarize(self, date: Union[datetime.date, str] = None ) -> Dict[str, float]:
+    def summarize(self, date: Union[datetime.date, str] = None) -> Dict[str, float]:
         """Sum hours worked for a given week"""
         # Date can be any date in the target week
         parsed = date
-        if isinstance(parsed , str):
-            parsed : datetime.date = datetime.date.fromisoformat(parsed)
+        if isinstance(parsed, str):
+            parsed: datetime.date = datetime.date.fromisoformat(parsed)
         elif parsed is None:
-            parsed  : datetime.date = datetime.date.today()
+            parsed: datetime.date = datetime.date.today()
         else:
-            parsed  : datetime.date= date
+            parsed: datetime.date = date
 
         calendar = parsed.isocalendar()
 
         # Weeks start on Monday, indexed 1
         days_into_week = datetime.timedelta(days=calendar[2] - 1)
         cur_date = parsed - days_into_week
-        one_day = datetime.timedelta(days=1)
-        # datestamps = [None] * constants.DAYS_IN_WEEK
-        out = {}
-        for __ in range(constants.DAYS_IN_WEEK):
-            next_date = cur_date + one_day
-            cur_datestamp = DayLog.yyyymmdd(cur_date)
-            # If no date exists for this day (implying no hours worked), set value to 0
-            hours = self.record.get(cur_datestamp, DayLog()).sum_times()
-            out[cur_datestamp] = hours
-            cur_date = next_date
+        return utils.sum_DayLogs(
+            start_date=cur_date, n_days=constants.DAYS_IN_WEEK, record=self.record
+        )
 
-
-        return out
-
-    def write_json_summary(self, json_path : str, date: Union[datetime.date, str] = None) -> None:
+    def write_json_summary(
+        self, json_path: str, date: Union[datetime.date, str] = None
+    ) -> None:
         """Compute summary and save as JSON instead of returning a dict"""
-        summary = self.summarize(date = date)
+        summary = self.summarize(date=date)
         with open(json_path, "w") as f:
             json.dump(summary, f)
 
-    def write_year_csv(self, path : str):
-        # TODO: allow aggregation of all data by week, in addition to targeting 
-        # just one week 
+    def write_csv_summary(self, path: str) -> None:
+        # TODO: allow aggregation of total hours worked by week, in addition to targeting just one week
         # Maybe use a generator to yield week summaries on demand?
-        #data = self.summarize(date = )
+        # data = self.summarize(date = )
+        # Get hours worked for every day recorded
+        # TODO aggregate by year or month
+        datestamps = [datetime.date.fromisoformat(ts) for ts in self.record.keys()]
+        start_date = min(datestamps)
+        # Add explicit 0s for unrecorded dates bettwen start and end
+        data = utils.sum_DayLogs(
+            start_date=start_date,
+            n_days=(max(datestamps) - start_date).days + 1,
+            record=self.record,
+        )
+        # Write CSV
+        with open(path, "w") as f: 
+            writer = csv.writer(f)
+            for k, v in data.items():
+                writer.writerow([k, v])
+
+
+        # Write dict to csv with columns year, month, date, hours
         pass
 
     @classmethod

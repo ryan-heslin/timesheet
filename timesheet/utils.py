@@ -57,8 +57,11 @@ def use_shelve_file(
     with shelve.open(path) as f:
         if storage_name is not None and not f.get(storage_name):
             raise KeyError(f"{storage_name!r} is not a valid key for {path!r}")
-        if is_interactive() and confirm_prompt is not None:
-            if input(confirm_prompt) != "":
+        # Bail out if confirmation specified and no confirmation given, or not in interactive mode
+        if confirm_prompt is not None:
+            if not is_interactive():
+                return
+            elif input(confirm_prompt) != "":
                 print("Aborting")
                 return
         return func(f)
@@ -85,6 +88,19 @@ class StandardCommandFactory:
             super().__init__(*args, **kwargs)
             self.params.extend(__class__.included_params)
 
+def sum_DayLogs(start_date : datetime.date, n_days : int, record : dict) -> dict:
+    one_day = datetime.timedelta(days=1)
+    out = {}
+    cur_date = start_date
+    # Add hours recorded for each date in range, 0 if no timestamps entered
+    for __ in range(n_days):
+        next_date = cur_date + one_day
+        cur_datestamp = Timesheet.DayLog.yyyymmdd(cur_date)
+        # If no date exists for this day (implying no hours worked), set value to 0
+        hours = record.get(cur_datestamp, Timesheet.DayLog()).sum_times()
+        out[cur_datestamp] = hours
+        cur_date = next_date
+    return out
 # Credit https://stackoverflow.com/questions/2356399/tell-if-python-is-in-interactive-mode
 def is_interactive(): 
     return hasattr(sys, "ps1")

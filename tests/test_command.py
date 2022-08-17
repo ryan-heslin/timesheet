@@ -3,8 +3,10 @@ import os
 from os.path import exists
 import re
 import datetime
+import shelve
 
 import pytest
+from timesheet import Timesheet
 
 ts = "./.venv/bin/timesheet"
 date = datetime.date.today().isoformat()
@@ -81,4 +83,30 @@ def test_append_old_date(helpers, tmp_path):
     assert instance[date].timestamps == timestamps+ extra_timestamps
 
     # Test for all days in week
+
+def test_write_json_summary(helpers, tmp_path):
+    storage_path = f"{tmp_path}/timesheet"
+    storage_name = "test"
+    
+    helpers.test_write_summary_command( storage_name, storage_path, str(tmp_path))
+
+def test_delete(helpers, tmp_path):
+    """Test if deletion fails if confirmation not specified"""
+    storage_name = "test"
+    storage_path = f"{str(tmp_path)}/test"
+    instance = Timesheet.Timesheet(data = helpers.daylog_data, save = True, storage_name = storage_name, storage_path = storage_path)
+    os.system(f"{helpers.ts} delete --storage_name {storage_name} --storage_path {storage_path}")
+    # Storage name should be gone if file deleted
+    with shelve.open(storage_path) as f:
+        assert storage_name in f.keys()
+
+def test_delete_force(helpers, tmp_path):
+    """Test that deletion works if `force` flag provided"""
+    storage_name = "test"
+    storage_path = f"{tmp_path}/test"
+    instance = Timesheet.Timesheet(data = helpers.daylog_data, save = True, storage_name = storage_name, storage_path = storage_path)
+    os.system(f"{helpers.ts} delete --storage_name {storage_name} --storage_path {storage_path} --force")
+    # Storage name should be gone if file deleted
+    with shelve.open(storage_path) as f:
+        assert not storage_name in f.keys()
 

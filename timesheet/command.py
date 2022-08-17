@@ -1,7 +1,6 @@
 import datetime
 
 import click
-import datetime
 
 from timesheet import constants
 from timesheet import Timesheet
@@ -25,7 +24,7 @@ def timesheet():
 @timesheet.command(name="locate_timesheet")
 # Actually loads given timesheet; errors are
 # caught in Timesheet.load
-def locate_timesheet_impl(storage_name, storage_path):
+def locate_timesheet_impl(storage_name: str, storage_path: str):
     return Timesheet.Timesheet.load(
         storage_name=storage_name, storage_path=storage_path
     )
@@ -90,7 +89,13 @@ def create(
 @click.option("--verbose/--silent", help=constants.HELP_MAP["verbose"], default=False)
 @click.option("--date", help=constants.HELP_MAP["date"], default=None)
 @timesheet.command(name="append", cls=locate_timesheet)
-def append(storage_name : str, storage_path : str, timestamps : list =[str], verbose : bool =False, date : datetime.date =None):
+def append(
+    storage_name: str,
+    storage_path: str,
+    timestamps: list = [str],
+    verbose: bool = False,
+    date: datetime.date = None,
+):
     date = datetime.date.today() if date is None else date
     if timestamps == []:
         parsed = None
@@ -105,17 +110,23 @@ def append(storage_name : str, storage_path : str, timestamps : list =[str], ver
     return 0
 
 
+@click.option("--output_path", help="Path to output JSON", default=None)
 @click.option(("--date"), help=constants.HELP_MAP["date"], default=None)
 @timesheet.command(name="summarize", cls=locate_timesheet)
 # @click.pass_context
-#@ckick.pass_context
 # TODO check if these inherit defaults
-def summarize(storage_name, storage_path, date=None):
+def summarize(
+    storage_name: str, storage_path: str, date: str = None, output_path: str = None
+):
     # @storage_name.forward(locate_timesheet)
-    instance = locate_timesheet_impl(
-        storage_name=storage_name, storage_path=storage_path
-    )
-    instance.summarize(date=date)
+    instance = Timesheet.Timesheet.load(
+            storage_name=storage_name, storage_path=storage_path
+        )
+    
+    if output_path is None:
+        instance.summarize(date=date)
+    else:
+        instance.write_json_summary(json_path=output_path, date=date)
 
 
 @timesheet.command()
@@ -133,12 +144,11 @@ def jsonify(storage_name, storage_path=constants.STORAGE_PATH, json_path=None):
     return 0
 
 
-@click.option("--confirm", help=constants.HELP_MAP["confirm"], default=True)
+@click.option("--force", help="Delete without requiring user confirmation", default=False, is_flag = True)
 @timesheet.command(name="delete", cls=locate_timesheet)
-def delete(storage_name, storage_path, confirm=True):
-    instance = Timesheet.Timesheet.load(
-        storage_name=storage_name, storage_path=storage_path
-    )
+def delete(storage_name, storage_path, force=False):
+    Timesheet.Timesheet.delete(storage_name=storage_name, storage_path = storage_path, confirm = not force)
+
 
 # Show saved timesheets
 @timesheet.command()
@@ -147,10 +157,11 @@ def delete(storage_name, storage_path, confirm=True):
     default=constants.STORAGE_PATH,
     help=constants.HELP_MAP["storage_path"],
 )
-def list(storage_path=constants.STORAGE_PATH):
+def list(storage_path : str =constants.STORAGE_PATH) -> dict:
     f = utils.use_shelve_file(
         func=lambda f: {k: v for k, v in f.items()}, path=storage_path
     )
     for k, v in f.items():
         print(f"{k}:")
         print(v)
+    return f

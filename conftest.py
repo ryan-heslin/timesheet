@@ -19,7 +19,7 @@ class Helpers:
     """See https://stackoverflow.com/questions/33508060/crjsonify-and-import-helper-functions-in-tests-without-creating-packages-in-test-di for this hack"""
 
 
-
+    ts =  "./.venv/bin/timesheet"
     DiffTime = Timesheet.DiffTime
     DayLog = Timesheet.DayLog
     Timesheet = Timesheet.Timesheet
@@ -35,7 +35,7 @@ class Helpers:
     extra_timestamps = [ 
             datetime.time(3, 0, 0 ,0), 
             datetime.time(23, 59, 59, 999)]
-    # Result of summarizing wee
+    # Result of summarizing week
     expected_day_times = {
             "2022-06-27": 1.5,
             "2022-06-28": 0,
@@ -127,19 +127,37 @@ class Helpers:
     def timestamps_to_strings(timestamps : list ) -> str:
         """Convert list of times to string argument"""
         return " -t ".join(datetime.time.isoformat(ts) for ts in timestamps)
+    
+    @staticmethod
+    def make_dates():
+        """Generate a week of fake dates"""
+        for date in __class__.expected_day_times.keys():
+            yield date #datetime.date(
+                  #          year=2022, month=6 + (i + 27 > 30), day=(27 + i) % 31 + (i + 27 > 30)
+                  #      )
 
     @staticmethod
-    def example_summarize(timesheet : "Timesheet", write_json = False) -> list:
+    def example_summarize(timesheet , write_json = False) -> list:
         """Get a list of summaries of the same week, called with varying arguments"""
-        method = "write_json_summary" if write_json else "summarize"
         return [timesheet.summarize(
-            date=datetime.date(
-                year=2022, month=6 + (i + 27 > 30), day=(27 + i) % 31 + (i + 27 > 30)
-            )
+            date=date
         )
-        for i in range(constants.DAYS_IN_WEEK)
+        for date in __class__.make_dates()
         ]
+
+    @staticmethod
+    def test_write_summary_command( storage_name : str, storage_path : str, directory : str) -> None:
+        """Get a list of summaries of the same week, called with varying arguments"""
+        test_paths = [f"{directory}/test{i}" for i in range(7)]
+        instance = __class__.Timesheet(data = __class__.daylog_data, storage_path = storage_path, save = True, storage_name=storage_name)
+        command_stem = f"{__class__.ts} summarize --storage_name {storage_name} --storage_path {storage_path}"
+        # Save summary for each day of week
+        for i, date in enumerate(__class__.make_dates()):  
+            command = f"{command_stem} --date '{date}' --output_path '{test_paths[i]}'"
+            os.system(command)
+            with open(test_paths[i]) as f:
+                assert json.load(f) == __class__.expected_day_times
+
 @pytest.fixture
 def helpers():
     return Helpers
-
