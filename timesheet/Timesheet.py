@@ -16,12 +16,43 @@ from typing import List
 from typing import TypeVar
 from typing import Union
 import csv
+from enum import Enum
 
 from timesheet import constants
 from timesheet import utils
 
 time_list = Union[List[datetime.datetime], List[datetime.time], List["DiffTime"]]
 
+class TimeAggregate(Enum): 
+
+    @staticmethod
+    def _increment_day(date : datetime.date):
+        return date + datetime.timedelta(days = 1)
+
+    @staticmethod
+    def _increment_week(date : datetime.date):
+        calendar = date.isocalendar()
+        # Weeks start on Monday, indexed 1
+        days_into_week = datetime.timedelta(days=calendar[2] - 1)
+        # Increments to Monday of next week
+        return date - days_into_week + datetime.timedelta(days = constants.DAYS_IN_WEEK)
+
+    @staticmethod
+    def _increment_month(date : datetime.date):
+        # Reworking of https://stackoverflow.com/questions/4130922/how-to-increment-datetime-by-custom-months-in-python-without-using-library
+        month =  date.month % constants.MONTHS_IN_YEAR + 1
+        # Only increase year if last month
+        year = date.year + date.month // 12
+        return datetime.date(year = year, month = month, day = 1)
+
+    @staticmethod
+    def _increment_year(date): 
+        return datetime.date(year = date.year + 1, month = 1, day = 1)
+
+    DAY = _increment_day
+    WEEK = _increment_week
+    MONTH = _increment_month
+    YEAR = _increment_year
 
 class DiffTime(datetime.time):
     """Subclass of datetime.time that supports arithmetic by adding a dummy datetime.time attribute that contains the hours, minutes, seconds, and microseconds of a datetime.time object"""

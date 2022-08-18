@@ -8,9 +8,10 @@ import json
 import shelve
 import csv
 
-import timesheet.constants
+from timesheet import constants
 
 test_date = "2022-06-19"
+test_datestamp = datetime.date.fromisoformat(test_date)
 
 # @pytest.fixture
 # def bare_Timesheet():
@@ -129,4 +130,30 @@ def test_write_empty_csv(helpers, tmp_path):
         read_data =  {date : float(hours) for date, hours in reader}
         comparison = instance.summarize(date = min(instance.record.keys()))
         assert all (read_data[date] == comparison[date] for date in read_data.keys()) 
+
+# TODO do these with single function
+def test_increment_day(helpers):
+    new_datestamp = helpers.TimeAggregate.DAY(test_datestamp)
+    assert (new_datestamp - test_datestamp).days == 1
+
+def test_increment_week(helpers):
+    # Monday
+    test_datestamp = datetime.date(year = 2022, month = 6, day = 27)
+    for i in range(constants.DAYS_IN_WEEK):
+        new_datestamp = helpers.TimeAggregate.WEEK(test_datestamp + datetime.timedelta(days = i))
+        assert new_datestamp == datetime.date(year = 2022, month = 7, day = 4)
+
+def test_increment_month(helpers):
+    test_datestamp = datetime.date(year = 2020, month = 2, day = 1  )
+    target_datestamp = datetime.date(year = 2020, month = 3, day = 1)
+    for i in range(( target_datestamp - test_datestamp ).days):
+        new_datestamp = helpers.TimeAggregate.MONTH(test_datestamp + datetime.timedelta(days = i))
+        assert new_datestamp == target_datestamp
+
+def test_increment_year(helpers):
+    test_datestamp = datetime.date(year = 2020, month = 1, day = 1  )
+    target_datestamp = datetime.date(year = 2021, month = 1, day = 1)
+    for i in range(( target_datestamp - test_datestamp ).days):
+        new_datestamp = helpers.TimeAggregate.YEAR(test_datestamp + datetime.timedelta(days = i))
+        assert new_datestamp == target_datestamp
 

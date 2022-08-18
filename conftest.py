@@ -12,14 +12,12 @@ import pytest
 from timesheet import Timesheet
 from timesheet import constants
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "Timesheet"))
-
-
 class Helpers:
     """See https://stackoverflow.com/questions/33508060/crjsonify-and-import-helper-functions-in-tests-without-creating-packages-in-test-di for this hack"""
 
 
     ts =  "./.venv/bin/timesheet"
+    TimeAggregate = Timesheet.TimeAggregate
     DiffTime = Timesheet.DiffTime
     DayLog = Timesheet.DayLog
     Timesheet = Timesheet.Timesheet
@@ -90,8 +88,6 @@ class Helpers:
     def pattern_in_json(path, pattern):
         with open(path) as f:
             data = json.load(f)
-        # for k in data.values():
-        #    print(k)
         __class__.recurse_dict(data, pattern)
 
     @staticmethod
