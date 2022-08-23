@@ -3,9 +3,7 @@ import json
 import os
 import re
 import subprocess
-import sys
-from contextlib import redirect_stdout
-from io import StringIO
+from typing import Generator
 
 import pytest
 
@@ -43,6 +41,8 @@ class Helpers:
             "2022-07-02": 0,
             "2022-07-03": 0,
         }
+    expected_start = datetime.date.fromisoformat(next(iter(expected_day_times.keys())))
+    expected_end = datetime.date.fromisoformat(max(expected_day_times.keys()))
     daylog_data = {
         "2022-06-27": DayLog(
             timestamps=[
@@ -127,20 +127,33 @@ class Helpers:
     @staticmethod
     def make_dates():
         """Generate a week of fake dates"""
-        for date in __class__.expected_day_times.keys():
+        for date in list(__class__.expected_day_times.keys())[1:]:
             yield date #datetime.date(
                   #          year=2022, month=6 + (i + 27 > 30), day=(27 + i) % 31 + (i + 27 > 30)
                   #      )
 
     @staticmethod
-    def example_summarize(timesheet , write_json = False) -> list:
+    def test_summarize(aggregate, expected): 
+        test = __class__.Timesheet(data=__class__.daylog_data)
+
+        assert  all(__class__.dict_subset(test.summarize(aggregate = aggregate), expected))
+
+
+
+    @staticmethod
+    def example_summarize(timesheet, **kwargs) -> list:
         """Get a list of summaries of the same week, called with varying arguments"""
         return [timesheet.summarize(
-            date=date
+           start_date = date,
+           end_date =  __class__.expected_end
         )
         for date in __class__.make_dates()
         ]
 
+    @staticmethod 
+    def dict_subset(d1 : dict, d2 : dict) -> Generator[bool, None, None]:
+        """Checks whether one dict is a subset of another"""
+        return(d1[k] == d2[k] for k in d1.keys())
     @staticmethod
     def test_write_summary_command( storage_name : str, storage_path : str, directory : str) -> None:
         """Get a list of summaries of the same week, called with varying arguments"""

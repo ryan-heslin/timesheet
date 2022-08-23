@@ -1,58 +1,25 @@
+import csv
 import datetime
 import json
 import shelve
-import sys
 from functools import reduce
 from os import access
-from os import getcwd
 from os import listdir
 from os import makedirs
 from os import W_OK
 from os.path import dirname
 from os.path import exists
-from os.path import expanduser
 from typing import Dict
 from typing import List
 from typing import TypeVar
 from typing import Union
-import csv
-from enum import Enum
 
 from timesheet import constants
+from timesheet import TimeAggregate
 from timesheet import utils
 
 time_list = Union[List[datetime.datetime], List[datetime.time], List["DiffTime"]]
 
-class TimeAggregate(Enum): 
-
-    @staticmethod
-    def _increment_day(date : datetime.date):
-        return date + datetime.timedelta(days = 1)
-
-    @staticmethod
-    def _increment_week(date : datetime.date):
-        calendar = date.isocalendar()
-        # Weeks start on Monday, indexed 1
-        days_into_week = datetime.timedelta(days=calendar[2] - 1)
-        # Increments to Monday of next week
-        return date - days_into_week + datetime.timedelta(days = constants.DAYS_IN_WEEK)
-
-    @staticmethod
-    def _increment_month(date : datetime.date):
-        # Reworking of https://stackoverflow.com/questions/4130922/how-to-increment-datetime-by-custom-months-in-python-without-using-library
-        month =  date.month % constants.MONTHS_IN_YEAR + 1
-        # Only increase year if last month
-        year = date.year + date.month // 12
-        return datetime.date(year = year, month = month, day = 1)
-
-    @staticmethod
-    def _increment_year(date): 
-        return datetime.date(year = date.year + 1, month = 1, day = 1)
-
-    DAY = _increment_day
-    WEEK = _increment_week
-    MONTH = _increment_month
-    YEAR = _increment_year
 
 class DiffTime(datetime.time):
     """Subclass of datetime.time that supports arithmetic by adding a dummy datetime.time attribute that contains the hours, minutes, seconds, and microseconds of a datetime.time object"""
@@ -113,7 +80,7 @@ class DayLog:
         timestamps: time_list = [],
     ) -> None:
 
-        # If no timestamps provided, don't automatically supply any
+        # If, no timestamps provided, don't automatically supply any
         self._validate_timestamp_sequence(timestamps, raise_exception=True)
         self.timestamps = self.convert_to_DiffTime(timestamps)
         self.date = date if date is not None else datetime.date.today()
@@ -247,6 +214,7 @@ class Timesheet:
         )
         # Generate default storage name if none provided
         if (arg_name := kwargs["storage_name"]) is None:
+            # Get storage names already in use, if any 
             if exists(self.storage_path):
                 used_names = utils.use_shelve_file(
                     storage_name=None,
@@ -278,9 +246,6 @@ class Timesheet:
     ) -> None:
         storage_name = self.storage_name if storage_name is None else storage_name
         path = self.storage_path if path is None else path
-        if storage_name is None:
-            print("Invalid storage name")
-            return
         target = dirname(path)
         if not access(target, W_OK):
             print(f"You lack write permission for directory {target}")
@@ -295,6 +260,9 @@ class Timesheet:
                 return
 
         with shelve.open(path, "c") as f:
+            # Create default storage name if unspecified
+            if storage_name is None: 
+                storage_name = self._default_name(list(f.keys()))
             # Bail out on attempt to overwrite if overwrite = False
             if (
                 not overwrite
@@ -377,11 +345,11 @@ class Timesheet:
     def __len__(self) -> int:
         return len(self.record)
 
-    def _default_name(self, names: List[str] = None, extension: str = "") -> str:
-        names = listdir(".") if names is None else names
-        """Generate a default path for saving"""
+    def _default_name(self, names: List[str] , extension: str = "") -> str:
+        """Generate a default path or storage name for saving when none is provided"""
         stem = self.__class__.__name__.lower()
         return f"{stem}{utils.next_number(stem = stem, names = names)}{extension}"
+
 
     def write_json(self, path: str = None) -> None:
         if path is None:
@@ -393,57 +361,60 @@ class Timesheet:
         with open(path, "w") as f:
             json.dump(self.record, f, default=utils.json_serialize)
 
-    def summarize(self, date: Union[datetime.date, str] = None) -> Dict[str, float]:
+    def summarize(
+        self,
+        start_date: Union[datetime.date, str] = datetime.date.min ,
+        end_date: Union[datetime.date, str]  = datetime.date.max,
+        aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day
+    ) -> Dict[str, float]:
         """Sum hours worked for a given week"""
-        # Date can be any date in the target week
-        parsed = date
-        if isinstance(parsed, str):
-            parsed: datetime.date = datetime.date.fromisoformat(parsed)
-        elif parsed is None:
-            parsed: datetime.date = datetime.date.today()
-        else:
-            parsed: datetime.date = date
 
-        calendar = parsed.isocalendar()
-
+        # Substitute 
+        
         # Weeks start on Monday, indexed 1
-        days_into_week = datetime.timedelta(days=calendar[2] - 1)
-        cur_date = parsed - days_into_week
         return utils.sum_DayLogs(
-            start_date=cur_date, n_days=constants.DAYS_IN_WEEK, record=self.record
+            start_date=start_date, end_date = end_date, aggregate=aggregate, record=self.record
         )
 
     def write_json_summary(
-        self, json_path: str, date: Union[datetime.date, str] = None
+        self,
+        json_path: str,
+        start_date: Union[datetime.date, str] = datetime.date.min,
+        end_date  : Union[datetime.date, str] = datetime.date.max,
+        aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
     ) -> None:
         """Compute summary and save as JSON instead of returning a dict"""
-        summary = self.summarize(date=date)
+        summary = self.summarize(start_date=start_date, end_date = end_date, aggregate=aggregate)
         with open(json_path, "w") as f:
             json.dump(summary, f)
 
-    def write_csv_summary(self, path: str) -> None:
+    def write_csv_summary(
+        self, path: str,
+        start_date: Union[datetime.date, str] = datetime.date.min,
+        end_date  : Union[datetime.date, str] = datetime.date.max,
+        aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day
+    ) -> None:
         # TODO: allow aggregation of total hours worked by week, in addition to targeting just one week
         # Maybe use a generator to yield week summaries on demand?
         # data = self.summarize(date = )
         # Get hours worked for every day recorded
         # TODO aggregate by year or month
-        datestamps = [datetime.date.fromisoformat(ts) for ts in self.record.keys()]
-        start_date = min(datestamps)
+        #datestamps = [datetime.date.fromisoformat(ts) for ts in self.record.keys()]
+        #start_date = min(datestamps)
         # Add explicit 0s for unrecorded dates bettwen start and end
-        data = utils.sum_DayLogs(
+        data = self.summarize(
             start_date=start_date,
-            n_days=(max(datestamps) - start_date).days + 1,
-            record=self.record,
+            end_date = end_date,
+            aggregate=aggregate
         )
+
         # Write CSV
-        with open(path, "w") as f: 
+        # Write dict to csv with columns year, month, date, hours
+        with open(path, "w") as f:
             writer = csv.writer(f)
             for k, v in data.items():
                 writer.writerow([k, v])
 
-
-        # Write dict to csv with columns year, month, date, hours
-        pass
 
     @classmethod
     def from_json(

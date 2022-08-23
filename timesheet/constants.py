@@ -1,7 +1,9 @@
 from os.path import expanduser
+import datetime
 
 STORAGE_PATH = expanduser("~/.timesheet/timesheets")
 
+# Commands help
 HELP_MAP = {
     "storage_path": "Path to shelve file where Timesheet instance is stored",
     "json_path": "Default path to write JSON representation of this instance",
@@ -14,3 +16,4 @@ HELP_MAP = {
 
 DAYS_IN_WEEK = 7
 MONTHS_IN_YEAR = 12
+EARLIEST_DATE= datetime.date(1, 1, 1)  

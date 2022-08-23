@@ -85,10 +85,16 @@ def test_append_old_date(helpers, tmp_path):
     # Test for all days in week
 
 def test_write_json_summary(helpers, tmp_path):
+    """Use command to summarize with default args"""
     storage_path = f"{tmp_path}/timesheet"
     storage_name = "test"
+    test = helpers.Timesheet(helpers.daylog_data, storage_path = storage_path, storage_name = storage_name)
+    os.system(f"{ts} summarize --storage_path {storage_path} --storage_name {storage_name} --output_path {tmp_path}/test.json ")
+    with open( f"{tmp_path}/test.json" ) as f: 
+        result = json.load(f)
+
+    assert all(helpers.dict_subset(result, helpers.expected_day_times))
     
-    helpers.test_write_summary_command( storage_name, storage_path, str(tmp_path))
 
 def test_delete(helpers, tmp_path):
     """Test if deletion fails if confirmation not specified"""

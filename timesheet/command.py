@@ -1,10 +1,11 @@
 import datetime
-
 import click
+from typing import Union
 
 from timesheet import constants
 from timesheet import Timesheet
 from timesheet import utils
+from timesheet import TimeAggregate
 
 # Click class for shared arguments
 # https://stackoverflow.com/questions/40182157/shared-options-and-flags-between-commands
@@ -110,23 +111,37 @@ def append(
     return 0
 
 
+
+@click.option("--aggregate", help="Level of aggregation to choose (day, week, month, or year)", default="day")
+@click.option("--start_date", help="Date on which to start aggregation (inclusive)", default=datetime.date.min)
+@click.option("--end_date", help="Date on which to end aggregation (exclusive)", default=datetime.date.max)
 @click.option("--output_path", help="Path to output JSON", default=None)
-@click.option(("--date"), help=constants.HELP_MAP["date"], default=None)
 @timesheet.command(name="summarize", cls=locate_timesheet)
 # @click.pass_context
 # TODO check if these inherit defaults
 def summarize(
-    storage_name: str, storage_path: str, date: str = None, output_path: str = None
+    storage_name: str, storage_path: str,  output_path: str = None, 
+    start_date : Union[str, datetime.date] = datetime.date.min, 
+    end_date : Union[str, datetime.date] = datetime.date.max, 
+    aggregate : str = "day"
 ):
     # @storage_name.forward(locate_timesheet)
     instance = Timesheet.Timesheet.load(
             storage_name=storage_name, storage_path=storage_path
         )
-    
+   
+    try:
+        # Get appropriate aggregate object
+        aggregate = TimeAggregate.__dict__[aggregate.title() ]
+    except KeyError as e: 
+        print(f"Invalid aggregate {aggregate}; must choose one of 'day', 'week', 'month', or 'year'")
+        raise e
+
+
     if output_path is None:
-        instance.summarize(date=date)
+        instance.summarize(start_date = start_date, end_date=end_date, aggregate = aggregate)
     else:
-        instance.write_json_summary(json_path=output_path, date=date)
+        instance.write_json_summary(json_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate)
 
 
 @timesheet.command()

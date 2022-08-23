@@ -7,11 +7,14 @@ from os import getcwd
 from os import listdir
 from os.path import exists
 from typing import Any
+from typing import Union
 
 import click
 
 from timesheet import constants
+from timesheet import TimeAggregate
 from timesheet import Timesheet
+
 
 # From https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
 def json_serialize(x):
@@ -36,7 +39,6 @@ def date_parser(di):
 def next_number(stem, names):
     if names == []:
         return 1
-    # breakpoint()
     pattern = stem + r"(\d+)\.?.*$"
     numbers = [0]
     for name in names:
@@ -52,7 +54,7 @@ def use_shelve_file(
     func, storage_name: str = None, path: str = None, confirm_prompt: str = None
 ) -> Any:
     path = f"{constants.STORAGE_PATH}" if path is None else path
-    if not exists(path): 
+    if not exists(path):
         raise FileNotFoundError(f"{path!r} does not exist")
     with shelve.open(path) as f:
         if storage_name is not None and not f.get(storage_name):
@@ -88,19 +90,101 @@ class StandardCommandFactory:
             super().__init__(*args, **kwargs)
             self.params.extend(__class__.included_params)
 
-def sum_DayLogs(start_date : datetime.date, n_days : int, record : dict) -> dict:
-    one_day = datetime.timedelta(days=1)
+
+def sum_DayLogs(
+    record: dict,
+    start_date : Union[datetime.date, str] = datetime.date.min,
+    end_date: Union[datetime.date, str] = datetime.date.max,
+    aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
+) -> dict:
+    start_date = handle_date_arg(start_date)
+    end_date = handle_date_arg(end_date)
     out = {}
-    cur_date = start_date
-    # Add hours recorded for each date in range, 0 if no timestamps entered
-    for __ in range(n_days):
-        next_date = cur_date + one_day
-        cur_datestamp = Timesheet.DayLog.yyyymmdd(cur_date)
-        # If no date exists for this day (implying no hours worked), set value to 0
-        hours = record.get(cur_datestamp, Timesheet.DayLog()).sum_times()
-        out[cur_datestamp] = hours
-        cur_date = next_date
-    return out
+
+    # Ensure that lowest and highest found date are ultimately recorded
+    min_date = datetime.date.max
+    max_date = datetime.date.min
+
+    for datestamp, daylog in record.items():
+        this_date = aggregate.floor(datetime.date.fromisoformat(datestamp))
+        # Skip if date not in range
+        if start_date  <= this_date < end_date:
+            min_date = min(this_date, min_date)
+            max_date = max(this_date, max_date)
+            key = datetime.date.strftime(this_date, aggregate.string_format)
+            out[key] = out.get(key, 0) + daylog.sum_times()
+    cur_date = min_date
+
+    # Fill in omitted dates
+    # TODO make this optional
+    if len(out) > 0:
+        while cur_date < max_date: 
+            key = datetime.date.strftime(cur_date, aggregate.string_format)
+            out[key] = out.get(key, 0) 
+            cur_date = aggregate.increment(cur_date)
+
+    return out 
+    
+#dates = sorted(
+        #[
+            #(datetime.date.fromisoformat(datestamp), DL)
+            #for datestamp, DL in record.items()
+        #],
+        #key=lambda x: x[0],
+    #)
+    #out = {}
+#
+    ## Default to earliest and latest recorded dates if not provided or
+    ## if either beyond range
+    ## Clamp dates to granularity of interval
+    #start_date = (
+        #dates[0][0] if start_date is None or start_date < dates[0][0] else start_date
+    #)
+    #end_date = (
+            #dates[-1][0]
+        #if end_date is None or end_date > dates[-1][0]
+        #else end_date
+    #)
+#
+    ## Illegal, since interval desired, not point
+    #if start_date == end_date:
+        #raise ValueError("Start and end dates must be different")
+#
+    ## Initialize values for loop start, truncating to aggregate granularity
+    #cur_lower = aggregate.floor(start_date)
+    #cur_upper = aggregate.increment(cur_lower)
+    #cur_key = datetime.date.strftime(cur_lower, aggregate.string_format)
+#
+    #while dates and cur_lower <= dates[-1][0]:
+#
+        ## Explicitly indicate when zero hours recorded if no time recorded
+        ## Key is always lower bound of interval
+        #out[cur_key] = 0
+        ## Count all dates in [cur_lower, cur_upper) 
+        ## i.e., closed on left, open on right
+        #while dates and cur_lower <= dates[0][0] < cur_upper <= end_date:
+            #out[cur_key] += dates.pop(0)[1].sum_times()
+#
+        ## Advance for next iteration
+        #cur_lower = cur_upper
+        #cur_upper = aggregate.increment(cur_upper)
+        #cur_key = datetime.date.strftime(cur_lower, aggregate.string_format)
+#
+    #return out
+
+
 # Credit https://stackoverflow.com/questions/2356399/tell-if-python-is-in-interactive-mode
-def is_interactive(): 
+def is_interactive():
     return hasattr(sys, "ps1")
+
+
+def handle_date_arg(date: Union[datetime.date, str, None], default: Any = None, allow_None = False) -> datetime.date:
+    if isinstance(date, str):
+        date = datetime.date.fromisoformat(date)
+    elif date is None:
+        if allow_None:
+            date = default
+        else: 
+            raise ValueError(f"{None!r} not allowed as a date value")
+    return date
+
