@@ -6,7 +6,7 @@ import pytest
 def test_add_timestamp(helpers):
     instance = helpers.bare_DayLog
     orig_length = len(instance)
-    instance.add_timestamps()
+    instance.concat_timestamps()
     assert len(instance) - orig_length == 1
 
 
@@ -29,7 +29,7 @@ def test_add(helpers):
 
 
 def test_zero_time(helpers):
-    assert helpers.bare_DayLog.sum_times() == 0
+    assert helpers.bare_DayLog.sum_time_intervals() == 0
 
 
 def test_DiffTime_sub1(helpers):
@@ -45,4 +45,4 @@ def test_DiffTime_sub2(helpers):
 
 def test_bad_timestamp(helpers):
     with pytest.raises(ValueError):
-        helpers.full_DayLog().add_timestamps([datetime.time()])
+        helpers.full_DayLog().concat_timestamps([datetime.time()])

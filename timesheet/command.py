@@ -105,7 +105,7 @@ def append(
     instance = Timesheet.Timesheet.load(
         storage_name=storage_name, storage_path=storage_path
     )
-    instance.add_timestamps(date=date, timestamps=parsed)
+    instance.concat_timestamps(date=date, timestamps=parsed)
     if verbose:
         click.echo(f"Added {timestamps!r} to Timesheet {storage_name!r} ")
     return 0

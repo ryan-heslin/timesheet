@@ -112,7 +112,7 @@ def sum_DayLogs(
             min_date = min(this_date, min_date)
             max_date = max(this_date, max_date)
             key = datetime.date.strftime(this_date, aggregate.string_format)
-            out[key] = out.get(key, 0) + daylog.sum_times()
+            out[key] = out.get(key, 0) + daylog.sum_time_intervals()
     cur_date = min_date
 
     # Fill in omitted dates
@@ -163,7 +163,7 @@ def sum_DayLogs(
         ## Count all dates in [cur_lower, cur_upper) 
         ## i.e., closed on left, open on right
         #while dates and cur_lower <= dates[0][0] < cur_upper <= end_date:
-            #out[cur_key] += dates.pop(0)[1].sum_times()
+            #out[cur_key] += dates.pop(0)[1].sum_time_intervals()
 #
         ## Advance for next iteration
         #cur_lower = cur_upper

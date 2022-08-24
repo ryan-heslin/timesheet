@@ -3,6 +3,7 @@ import datetime
 import json
 import shelve
 from functools import reduce
+from functools import lru_cache
 from os import access
 from os import listdir
 from os import makedirs
@@ -22,7 +23,7 @@ time_list = Union[List[datetime.datetime], List[datetime.time], List["DiffTime"]
 
 
 class DiffTime(datetime.time):
-    """Subclass of datetime.time that supports arithmetic by adding a dummy datetime.time attribute that contains the hours, minutes, seconds, and microseconds of a datetime.time object"""
+    """Subclass of datetime.time that supports intended to represent times without reference to a particular day. arithmetic by adding a dummy datetime.time attribute that contains hours, minutes, seconds, and microseconds components"""
 
     def __init__(
         self,
@@ -30,10 +31,20 @@ class DiffTime(datetime.time):
         minute: int = 0,
         second: int = 0,
         microsecond: int = 0,
-        tzinfo=None,
+        tzinfo : datetime.tzinfo =None,
         *,
-        fold=0,
+        fold : int=0,
     ):
+        """
+        Initialize a DiffTime object. This subclass of :code:`datetime.datetime` creates a dummy `datetime.time` object 
+
+        :param hour int: Hour value in :code:`range(24)`
+        :param minute int: Minute value in :code:`range(60)`
+        :param second int: Second value in :code:`range(60)`
+        :param microsecond int: Microsecond value in :code:`range(1000000)`
+        :param tzinfo: :code:`tzinfo` instance, or :code:`None`
+        :param fold int: 0 or 1 indicating whether to distinguish "wall times"
+        """
         super().__init__()
         self._date_impl = self.dummy_date(self)
 
@@ -65,35 +76,57 @@ class DiffTime(datetime.time):
         """Return timedelta object with difference"""
         return self._date_impl - self.dummy_date(other)
 
+    @property
+    @lru_cache()
+    def min(self):
+        """Lowest possible DiffTime object"""
+        return DiffTime(hour = 0, second = 0, minute = 0,  microsecond = 0 )
+
+    @property
+    @lru_cache()
+    def max(self):
+        """Greatest possible DiffTime object"""
+        return DiffTime(hour = 23, minute = 59, second = 59,  microsecond = 999999 )
+
 
 class DayLog:
-    microsecond_conversions = {
-        "hour": 3600000000,
-        "minute": 60000000,
-        "second": 1000000,
-        "microsecond": 1,
-    }
+
+    
+    # Used to convert time differences to hours
+    hour_conversions = {
+            "days" : 24 ,
+            "seconds" : 1 / 3600, 
+            "microseconds" : 1 / 3.6e+9
+            }
 
     def __init__(
         self,
-        date: datetime.date = None,
+        date: Union[datetime.date, str, None] = None,
         timestamps: time_list = [],
     ) -> None:
+        """
+        Initialize DayLog instance. This class records a series of timestamps within the 
+        span of a specified date. It can form intervals from these timestamps and compute their total sum.
+
+        :param date datetime.date: Date the instance should refer to
+        :param timestamps time_list: Optional list of timestamps to record. Must be sorted in ascending order and contain no duplicates
+        """
 
         # If, no timestamps provided, don't automatically supply any
         self._validate_timestamp_sequence(timestamps, raise_exception=True)
         self.timestamps = self.convert_to_DiffTime(timestamps)
-        self.date = date if date is not None else datetime.date.today()
+        self.date = utils.handle_date_arg(date, default=datetime.date.today(), allow_None=True)
         self.creation_time = datetime.datetime.today()
 
-    def add_timestamps(self, timestamps: time_list = None) -> None:
+    def concat_timestamps(self, timestamps: time_list = None) -> None:
         converted = (
             [datetime.datetime.today()]
             if timestamps is None or len(timestamps) == 0
             else timestamps
         )
-        converted: List[DiffTime] = self.convert_to_DiffTime(converted)
+        converted= self.convert_to_DiffTime(converted)
         self._validate_timestamp_sequence(timestamps=converted, raise_exception=True)
+
         # New timestamp must come after all recorded ones
         if len(self) > 0 and converted[0] <= self.timestamps[-1]:
             raise ValueError(
@@ -106,6 +139,7 @@ class DayLog:
 
     @staticmethod
     def yyyymmdd(timestamp=datetime.datetime.today()):
+        """Format a date YYYY-MM-DD"""
         return datetime.datetime.strftime(timestamp, "%Y-%m-%d")
 
     def __str__(self) -> str:
@@ -131,10 +165,14 @@ class DayLog:
     @staticmethod
     def convert_to_hours(delta: datetime.timedelta) -> float:
         """Converts a datetime.timedelta object to its decimal value in hours"""
-        return delta.days * 24 + delta.seconds / 3600 + delta.microseconds / 3600000000
+        return sum(
+                    conversion * getattr(delta, unit)
+                    for unit, conversion in __class__.hour_conversions.items()
+                )
 
-    def sum_times(self) -> float:
+    def sum_time_intervals(self) -> float:
         n_timestamps = len(self)
+
         # If 0 or 1 timestamps only, no difference to account for
         if n_timestamps < 2:
             time = datetime.timedelta(0)
@@ -167,13 +205,6 @@ class DayLog:
             for x in timestamps
         ]
 
-    @staticmethod
-    def absolute_time(time: Union[datetime.time, "DiffTime"]) -> int:
-        """Converts datetime.time object to microseconds"""
-        return sum(
-            __class__.microsecond_conversions[unit] * getattr(time, unit)
-            for unit in __class__.microsecond_conversions.keys()
-        )
 
 
 class Timesheet:
@@ -309,7 +340,7 @@ class Timesheet:
             func=lambda f: [k for k, v in f.items() if isinstance(v, Timesheet)],
         )
 
-    def add_timestamps(
+    def concat_timestamps(
         self,
         date: Union[datetime.date, str] = None,
         timestamps: List[datetime.datetime] = None,
@@ -328,7 +359,7 @@ class Timesheet:
         if data is None:
             self.record[datestamp] = DayLog(timestamps=timestamps)
         else:
-            data.add_timestamps(timestamps)
+            data.concat_timestamps(timestamps)
         self.save(overwrite=True)
 
     def __getitem__(self, k: str) -> DayLog:
