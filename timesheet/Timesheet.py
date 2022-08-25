@@ -103,7 +103,7 @@ class DayLog:
     def __init__(
         self,
         date: Union[datetime.date, str, None] = None,
-        timestamps: time_list = [],
+        timestamps: time_list = None
     ) -> None:
         """
         Initialize DayLog instance. This class records a series of timestamps within the
@@ -114,6 +114,7 @@ class DayLog:
         """
 
         # If, no timestamps provided, don't automatically supply any
+        timestamps = [] if timestamps is None else timestamps
         self._validate_timestamp_sequence(timestamps, raise_exception=True)
         self.timestamps = self.convert_to_DiffTime(timestamps)
         self.date = utils.handle_date_arg(
@@ -179,7 +180,22 @@ class DayLog:
             raise ValueError(
                 f"Cannot add DiffTime objects when dates {self.date} and {other.date} disagree"
             )
-        combined: time_list = self.timestamps + other.timestamps
+        # Add in sorted order (arbitrary if one or both have no timestamps)
+        if (
+            len(self.timestamps) == 0
+            or len(other.timestamps) == 0
+            or self.timestamps[0] <= self.timestamps[-1] < other.timestamps[0]
+        ):
+            combined: time_list = self.timestamps + other.timestamps
+        elif other.timestamps[0] <= other.timestamps[-1] < self.timestamps[0]:
+            combined: time_list = other.timestamps + self.timestamps
+        else:
+            raise ValueError(
+                f"""Cannot combine DayLog instances if timestamps of one are not all either greater than or less than timestamps of the other
+                Left: {self.timestamps!r}
+                Right: {other.timestamps!r}
+                """
+            )
         return self.__class__(date=self.date, timestamps=combined)
 
     def __repr__(self) -> str:
@@ -254,17 +270,17 @@ class Timesheet:
         storage_path: str = None,
         storage_name: str = None,
         save: bool = True,
-        json_path : str =None,
+        json_path: str = None,
     ) -> None:
         """
         Initialize a :code:`Timesheet` instance.
 
         :param data Dict[str, DayLog]: Optional dict one mapping or more :code:`DayLog`  instances to :code:`str` keys, which must be recognizable as ISO-formatted dates
-        :param storage_path str: Optional path to directory in which to store this instance. Defaults to :code:`$HOME/.timesheets` 
+        :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
-        :param json_path [TODO:type]: [TODO:description]
-        :rtype None: 
+        :param json_path str:
+        :rtype None:
         """
 
         # If no initial data is supplied, default to empty DayLog dated today
@@ -282,6 +298,8 @@ class Timesheet:
         data = (
             {DayLog.yyyymmdd(): DayLog()} if kwargs["data"] is None else kwargs["data"]
         )
+        data = { key : data[key] for key in sorted(data.keys(), key = lambda k: datetime.date.fromisoformat(k))}
+        #utils.validate_datestamps(data.keys())
         self.record = data
         self.storage_name = kwargs["storage_name"]
         self.creation_time = datetime.datetime.today()
@@ -298,11 +316,13 @@ class Timesheet:
             overwrite = True
             used_names = []
             if exists(self.storage_path):
-                used_names.extend(utils.use_shelve_file(
-                    storage_name=None,
-                    func=lambda f: [k for k in f],
-                    path=self.storage_path,
-                ))
+                used_names.extend(
+                    utils.use_shelve_file(
+                        storage_name=None,
+                        func=lambda f: [k for k in f],
+                        path=self.storage_path,
+                    )
+                )
             self.storage_name = self._default_name(names=used_names, extension="")
         else:
             overwrite = False
@@ -330,9 +350,9 @@ class Timesheet:
 
         :param path str: Optional path to the :code:`shelve` file. Default to "$HOME/.timesheet/timesheets".
         :param storage_name str: Optional name for this instance in :code:`shelve` storage. Generated automatically if omitted.
-        :param overwrite bool: Optional :code:`bool` indicating whether to overwrite an existing instance that shares :code:`storage_name`. Default :code:`False` 
+        :param overwrite bool: Optional :code:`bool` indicating whether to overwrite an existing instance that shares :code:`storage_name`. Default :code:`False`
         :param create_directory bool: Optional logical indivating whether to create the directory containing :code:`storage_path` if it does not exist. Default :code:`False`.
-        :rtype None: 
+        :rtype None:
         """
         storage_name = self.storage_name if storage_name is None else storage_name
         path = self.storage_path if path is None else path
@@ -372,9 +392,9 @@ class Timesheet:
     @staticmethod
     def load(storage_name: str, storage_path: str = None) -> "Timesheet":
         """
-        Load a :code:`Timesheet` instance from storage.     
+        Load a :code:`Timesheet` instance from storage.
 
-        :param storage_name str: Name of the target instance in :code:`shelve` storage. 
+        :param storage_name str: Name of the target instance in :code:`shelve` storage.
         :param storage_path str: Path to :code:`shelve` file.
         :rtype "Timesheet": Instance loaded from the target name and path.
         """
@@ -383,15 +403,13 @@ class Timesheet:
         )
 
     @staticmethod
-    def delete(
-        storage_name: str, storage_path: str, confirm: bool = True
-    ) -> None:
+    def delete(storage_name: str, storage_path: str, confirm: bool = True) -> None:
         """
-        Delete the :code:`Timesheet` instance identified by :code:`storage_path` and :code:`storage_name`.                          
+        Delete the :code:`Timesheet` instance identified by :code:`storage_path` and :code:`storage_name`.
 
         :param storage_name str: String identifying the target instance in :code:`shelve` storage.
-        :param storage_path str: 
-        :param confirm bool: Optional :code:`bool`indicating whether to ask for confirmation before deletion (if run interactively) or abort (if not). Default :code:`True` 
+        :param storage_path str:
+        :param confirm bool: Optional :code:`bool`indicating whether to ask for confirmation before deletion (if run interactively) or abort (if not). Default :code:`True`
         :rtype None: [TODO:description]
         """
         confirm_prompt = (
@@ -409,10 +427,10 @@ class Timesheet:
     @staticmethod
     def list(path: str = None) -> List[str]:
         """
-        List the names of :code:`Timesheet` instances stored at a particular path   
+        List the names of :code:`Timesheet` instances stored at a particular path
 
         :param path str: Path to the :code:`shelve` file to list
-        :rtype List[str]: List of keys to the :code:`shelve` file chosen.  
+        :rtype List[str]: List of keys to the :code:`shelve` file chosen.
         """
         return utils.use_shelve_file(
             path=path,
@@ -430,8 +448,9 @@ class Timesheet:
             if timestamps is None or timestamps == []
             else timestamps
         )
+
         # If passed as string, coerce first to common formate
-        date = datetime.date.fromisoformat(date) if type(date) is str else date
+        date = utils.handle_date_arg(date)
         datestamp = DayLog.yyyymmdd(date)
         data = self.record.get(datestamp)
         # If a DayLog object exists for this day, add timestamp to it. Otherwise, create a new one, with the current time as an initial timestamp
@@ -440,6 +459,53 @@ class Timesheet:
         else:
             data.concat_timestamps(timestamps)
         self.save(overwrite=True)
+
+    def merge(
+        self,
+        other: "Timesheet",
+        storage_path: str = None,
+        storage_name: str = None,
+        save: bool = True,
+        json_path: str = None,
+    ) -> None:
+
+        """
+        Initialize a :code:`Timesheet` instance.
+
+        :param data Dict[str, DayLog]: Optional dict one mapping or more :code:`DayLog`  instances to :code:`str` keys, which must be recognizable as ISO-formatted dates
+        :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
+        :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
+        :param save bool: Optional bool determining whether to save on instance creation
+        :param json_path str:
+        :rtype None:
+        """
+        # Find common keys
+        # If none, just merge dicts
+        # If common keys, for each key:
+        # Try to combine
+        own_keys = set(self.record.keys())
+        other_keys = set(other.record.keys())
+        common_keys = own_keys.intersection(other_keys)
+        distinct_keys = own_keys.symmetric_difference(other_keys)
+
+        # Get all distinct keys from appropriate dict
+        new_data = {
+            timestamp: self.record.get(timestamp, other.record.get(timestamp))
+            for timestamp in distinct_keys
+        }
+
+        # Attempt DayLog merge for each shared key
+        new_data.update ( {
+            timestamp: self.record[timestamp] + (other.record[timestamp])
+            for timestamp in common_keys
+        } )
+        self._constructor(
+            data=new_data,
+            storage_path=storage_path,
+            storage_name=storage_name,
+            save=save,
+            json_path=json_path,
+        )
 
     def __getitem__(self, k: str) -> DayLog:
         return self.record[k]
@@ -461,6 +527,12 @@ class Timesheet:
         return f"{stem}{utils.next_number(stem = stem, names = names)}{extension}"
 
     def write_json(self, path: str = None) -> None:
+        """
+        Write an instance's day data to JSON.
+
+        :param path str: Optional path to output JSON. Defaults to the instance's :code:`json_path` attribute, or a generated unique name if it is :code:`None`.
+        :rtype None:
+        """
         if path is None:
             path = (
                 self.json_path
@@ -525,14 +597,24 @@ class Timesheet:
     @classmethod
     def from_json(
         cls,
-        path: str,
+        data_path: str,
         storage_path: str = None,
         storage_name: str = None,
         save: bool = True,
         json_path: str = None,
     ) -> "Timesheet":
-        """Creates instance from path to JSON representation"""
-        with open(path) as f:
+        """
+        Create a :code:`Timesheet` instance from a path to a JSON representation of an instance's data.
+
+        :param cls [TODO:type]: [TODO:description]
+        :param data_path str: Path to a JSON file containing data for the instance, perhaps generated from another instance using.
+        :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
+        :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
+        :param save bool: Optional bool determining whether to save on instance creation
+        :param json_path str: [TODO:description]
+        :rtype "Timesheet": Created :code:`Timesheet instance`
+        """
+        with open(data_path) as f:
             data = json.load(f, object_hook=utils.date_parser)
         instance = cls.__new__(cls)
         instance._constructor(

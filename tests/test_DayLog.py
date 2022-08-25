@@ -21,11 +21,24 @@ def test_convert_to_hours(helpers):
 
 def test_add(helpers):
     new_timestamps = [datetime.time(3, 1, 1, 1), datetime.time(4, 1, 1, 1)]
+    full_DayLog = helpers.full_DayLog() 
+    extra_DayLog = helpers.DayLog(timestamps=new_timestamps)
     assert (
-        helpers.full_DayLog() + helpers.DayLog(timestamps=new_timestamps)
-    ).timestamps == helpers.DayLog.convert_to_DiffTime(
+            ( full_DayLog + extra_DayLog
+                ) .timestamps ==  (extra_DayLog + full_DayLog).timestamps == helpers.DayLog.convert_to_DiffTime(
         helpers.timestamps + new_timestamps
     )
+                )
+
+def test_add_single(helpers): 
+    """Adding any number with no timestamps recorded"""
+    assert (helpers.DayLog() + helpers.DayLog() + helpers.DayLog()).timestamps == []
+
+def test_add_error(helpers): 
+    new_timestamps = [datetime.time(3, 1, 1, 1), datetime.time(4, 1, 1, 1)]
+    with pytest.raises(ValueError): 
+        helpers.DayLog(new_timestamps) + helpers.DayLog(datetime.time(3, 2, 2, 2))
+
 
 
 def test_zero_time(helpers):

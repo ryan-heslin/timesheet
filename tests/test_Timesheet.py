@@ -2,6 +2,7 @@ import csv
 import datetime
 import json
 import shelve
+from copy import deepcopy
 from os import chdir
 from os import getcwd
 from os import system
@@ -45,7 +46,7 @@ def test_write_json(helpers, tmp_path):
 def test_from_json(helpers, tmp_path):
     path = "test.json"
     original = helpers.write_json(path=f"{tmp_path}/{path}")
-    new = helpers.Timesheet.from_json(path=f"{tmp_path}/{path}")
+    new = helpers.Timesheet.from_json(data_path=f"{tmp_path}/{path}")
     assert original[test_date].timestamps == new[test_date].timestamps
 
 
@@ -59,8 +60,9 @@ def test_auto_json_path(helpers, tmp_path):
     original = helpers.full_Timesheet(save=False)
     original.write_json(path=None)
     chdir(wd)
-    new = helpers.Timesheet.from_json(f"{tmp_path}/timesheet3.json", save=False)
-    # breakpoint()
+    new = helpers.Timesheet.from_json(
+        data_path=f"{tmp_path}/timesheet3.json", save=False
+    )
     assert original.record[test_date].timestamps == new.record[test_date].timestamps
 
 
@@ -105,9 +107,9 @@ def test_summarize_week(helpers):
         {
             datetime.date.strftime(
                 datetime.date.fromisoformat(min(helpers.expected_day_times.keys())),
-                TimeAggregate.Week.string_format
+                TimeAggregate.Week.string_format,
             ): sum(helpers.expected_day_times.values())
-        }
+        },
     )
 
 
@@ -117,14 +119,16 @@ def test_summarize_month(helpers):
         {
             datetime.date.strftime(
                 datetime.date.fromisoformat(min(helpers.expected_day_times.keys())),
-                TimeAggregate.Month.string_format
+                TimeAggregate.Month.string_format,
             ): sum(helpers.expected_day_times.values())
         },
     )
 
 
 def test_summarize_year(helpers):
-    helpers.test_summarize(TimeAggregate.Year, {"2022" : sum(helpers.expected_day_times.values())})
+    helpers.test_summarize(
+        TimeAggregate.Year, {"2022": sum(helpers.expected_day_times.values())}
+    )
 
 
 def test_write_summary(helpers, tmp_path):
@@ -207,22 +211,99 @@ def test_increment_year(helpers):
         )
         assert new_datestamp == target_datestamp
 
+
 def test_default_name(helpers, tmp_path):
     n_tests = 5
     storage_path = f"{tmp_path}/timesheet"
 
     names = []
-    for i in range(1, n_tests + 1): 
-        helpers.Timesheet(helpers.daylog_data, storage_path  = storage_path)
+    for i in range(1, n_tests + 1):
+        helpers.Timesheet(helpers.daylog_data, storage_path=storage_path)
         names.append(f"timesheet{i}")
-    test = helpers.Timesheet(helpers.daylog_data, storage_path = storage_path )
+    test = helpers.Timesheet(helpers.daylog_data, storage_path=storage_path)
     assert test._default_name(names) == f"timesheet{n_tests + 1}"
+
 
 def test_no_storage_name(helpers, tmp_path):
     storage_path = f"{tmp_path}/timesheet"
-    test = helpers.Timesheet(helpers.daylog_data, storage_name = None, storage_path = storage_path, save = True )
-    test2 = helpers.Timesheet(helpers.daylog_data, storage_name = None, storage_path = storage_path, save = True )
-    test3 = helpers.Timesheet(helpers.daylog_data, storage_name = None, storage_path = storage_path, save = True )
+    test = helpers.Timesheet(
+        helpers.daylog_data, storage_name=None, storage_path=storage_path, save=True
+    )
+    test2 = helpers.Timesheet(
+        helpers.daylog_data, storage_name=None, storage_path=storage_path, save=True
+    )
+    test3 = helpers.Timesheet(
+        helpers.daylog_data, storage_name=None, storage_path=storage_path, save=True
+    )
 
-    with shelve.open(storage_path) as f: 
+    with shelve.open(storage_path) as f:
         assert all(k == f"timesheet{i + 1}" for i, k in enumerate(sorted(f.keys())))
+
+
+def test_bad_datestamp(helpers, tmp_path):
+    """Timesheet given non-ISO formatted datestamp raises error"""
+    with pytest.raises(ValueError):
+        helpers.Timesheet(
+            data={"bad_date": helpers.DayLog()}, storage_path=f"{tmp_path}/timesheet"
+        )
+
+
+def test_self_merge(helpers):
+    """Merging Timesheet with itself fails"""
+    start = helpers.full_Timesheet()
+    with pytest.raises(ValueError):
+        start.merge(start)
+
+
+def test_simple_merge(helpers):
+    """Merging with empty Timesheet has no effect"""
+    test = helpers.full_Timesheet(save=False)
+    old = test.record
+    new = helpers.bare_Timesheet.record
+    test.merge(helpers.bare_Timesheet)
+    old.update(new)
+    assert test.record == old
+
+
+def test_intersect_merge(helpers):
+    target_date = "2022-06-27"
+    reference = deepcopy(helpers.daylog_data)
+    left = helpers.Timesheet(data=reference)
+    right = helpers.Timesheet(
+        data={
+            target_date: helpers.DayLog(
+                date=target_date, timestamps=[datetime.time(hour=1)]
+            )
+        }
+    )
+    left.merge(right)
+    reference[target_date] = helpers.DayLog(
+        timestamps=[datetime.time(hour=1)] + reference[target_date].timestamps
+    )
+    assert all(
+        left.record[key].timestamps == reference[key].timestamps
+        for key in left.record.keys()
+    )
+
+
+def test_all_intersect_merge(helpers):
+    """Timesheets with entirely shared keys are added correctly"""
+    #breakpoint()
+    reference = deepcopy(helpers.daylog_data)
+    left = helpers.Timesheet(data=reference)
+    new_timestamp = datetime.time(hour = 23, minute =  3)
+    # Create new data with a later timestamp for each key
+    new_data = {
+            key : helpers.DayLog(date=key, timestamps=[ new_timestamp ])
+        for key in reference.keys()
+    }
+    right = helpers.Timesheet(
+        data=new_data
+    )
+    reference = {key : helpers.DayLog(date = key, timestamps = reference[key].timestamps + [ new_timestamp ]) for key in reference.keys()}
+    left.merge(right)
+    assert all(
+            left.record[key].timestamps == reference[key].timestamps
+            for key in left.record.keys()
+        )
+

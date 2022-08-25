@@ -45,6 +45,7 @@ class Helpers:
     expected_end = datetime.date.fromisoformat(max(expected_day_times.keys()))
     daylog_data = {
         "2022-06-27": DayLog(
+            date = "2022-06-27",
             timestamps=[
                 datetime.time(hour=2),
                 datetime.time(hour=3),
@@ -53,6 +54,7 @@ class Helpers:
             ]
         ),
         "2022-06-29": DayLog(
+            date = "2022-06-29",
             timestamps=[datetime.time(hour=0, minute=10), datetime.time(hour=1)]
         ),
     }

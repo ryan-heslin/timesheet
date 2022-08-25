@@ -14,6 +14,7 @@ date = datetime.date.today().isoformat()
 
 
 def test_timesheet_installed():
+    """Check that binary is available"""
     assert os.path.exists(ts)
 
 
@@ -31,7 +32,7 @@ def test_jsonify(helpers, tmp_path):
     os.system(
         f"{ts} create --json_path {json_path} --storage_path {path} --storage_name test"
     )
-    os.system(f"{ts} jsonify test --json_path {json_path} --storage_path {path}")
+    os.system(f"{ts} jsonify --storage_name test --json_path {json_path} --storage_path {path}")
     os.system(
         f"{ts} create --json_source {json_path}  --storage_name test2 --storage_path {path}2"
     )
@@ -96,7 +97,7 @@ def test_write_json_summary(helpers, tmp_path):
     assert all(helpers.dict_subset(result, helpers.expected_day_times))
     
 
-def test_delete(helpers, tmp_path):
+def test_delete_no_confirm(helpers, tmp_path):
     """Test if deletion fails if confirmation not specified"""
     storage_name = "test"
     storage_path = f"{str(tmp_path)}/test"

@@ -67,7 +67,7 @@ def create(
         )
     else:
         Timesheet.Timesheet.from_json(
-            path=json_source,
+            data_path=json_source,
             storage_path=storage_path,
             storage_name=storage_name,
             json_path=json_path,
@@ -144,15 +144,15 @@ def summarize(
         instance.write_json_summary(json_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate)
 
 
-@timesheet.command()
-@click.argument("storage_name", required=1)
-@click.option(
-    "--storage_path",
-    help=constants.HELP_MAP["storage_path"],
-    default=constants.STORAGE_PATH,
-)
+#@timesheet.command()
+#@click.argument("storage_name", required=1)
+#@click.option(
+#    "--storage_path",
+#    help=constants.HELP_MAP["storage_path"],
+#    default=constants.STORAGE_PATH,
+#)
 @click.option("--json_path", help="Path to JSON output", default=None)
-# @timesheet.command(name="jsonify", cls=locate_timesheet)
+@timesheet.command(name="jsonify", cls=locate_timesheet)
 def jsonify(storage_name, storage_path=constants.STORAGE_PATH, json_path=None):
     instance = Timesheet.Timesheet.load(storage_name, storage_path)
     instance.write_json(path=json_path)
