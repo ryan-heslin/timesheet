@@ -77,7 +77,7 @@ def decrement_year(date : datetime.date):
 day_format = "%Y-%m-%d"
 # Year-week: week 0 for days in January before first Monday
 week_format = "%Y-%W"
-month_format = "Y-%-m"
+month_format = "%Y-%-m"
 year_format = "%Y"
 
 # Built-in aggregation time spans

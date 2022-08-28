@@ -3,6 +3,7 @@ import datetime
 import json
 import shelve
 from copy import deepcopy
+from itertools import groupby
 from os import chdir
 from os import getcwd
 from os import system
@@ -114,14 +115,17 @@ def test_summarize_week(helpers):
 
 
 def test_summarize_month(helpers):
+    expected = {}
+    # Manually aggregate hours by month
+    for datestamp in helpers.expected_day_times.keys():
+        month = datetime.date.strftime(
+            datetime.date.fromisoformat(datestamp),
+            TimeAggregate.Month.string_format,
+        )
+        expected[month] = expected.get(month, 0) + helpers.expected_day_times[datestamp]
     helpers.test_summarize(
         TimeAggregate.Month,
-        {
-            datetime.date.strftime(
-                datetime.date.fromisoformat(min(helpers.expected_day_times.keys())),
-                TimeAggregate.Month.string_format,
-            ): sum(helpers.expected_day_times.values())
-        },
+        expected,
     )
 
 
@@ -266,6 +270,7 @@ def test_simple_merge(helpers):
 
 
 def test_intersect_merge(helpers):
+    """Merge where some keys are shared"""
     target_date = "2022-06-27"
     reference = deepcopy(helpers.daylog_data)
     left = helpers.Timesheet(data=reference)
@@ -288,22 +293,74 @@ def test_intersect_merge(helpers):
 
 def test_all_intersect_merge(helpers):
     """Timesheets with entirely shared keys are added correctly"""
-    #breakpoint()
     reference = deepcopy(helpers.daylog_data)
     left = helpers.Timesheet(data=reference)
-    new_timestamp = datetime.time(hour = 23, minute =  3)
+    new_timestamp = datetime.time(hour=23, minute=3)
     # Create new data with a later timestamp for each key
     new_data = {
-            key : helpers.DayLog(date=key, timestamps=[ new_timestamp ])
+        key: helpers.DayLog(date=key, timestamps=[new_timestamp])
         for key in reference.keys()
     }
-    right = helpers.Timesheet(
-        data=new_data
-    )
-    reference = {key : helpers.DayLog(date = key, timestamps = reference[key].timestamps + [ new_timestamp ]) for key in reference.keys()}
+    right = helpers.Timesheet(data=new_data)
+    reference = {
+        key: helpers.DayLog(
+            date=key, timestamps=reference[key].timestamps + [new_timestamp]
+        )
+        for key in reference.keys()
+    }
     left.merge(right)
     assert all(
-            left.record[key].timestamps == reference[key].timestamps
-            for key in left.record.keys()
-        )
+        left.record[key].timestamps == reference[key].timestamps
+        for key in left.record.keys()
+    )
 
+
+def test_disjoint_merge(helpers):
+    """Merge of DayLogs with no common keys"""
+    reference = deepcopy(helpers.daylog_data)
+    # No common keys - dates in January
+    new = {
+        datetime.date.isoformat(datetime.date(year = 2022, month = 1, day = i + 1)): helpers.DayLog(
+            timestamps=[datetime.time(hour=3, second=20)]
+        )
+        for i in range(len(reference))
+    }
+    left = helpers.Timesheet(data=reference)
+    right = helpers.Timesheet(data=new)
+    reference.update(new)
+    left.merge(right)
+    assert all(
+        left.record[key].timestamps == reference[key].timestamps
+        for key in left.record.keys()
+    )
+
+
+def test_sequential_merge(helpers):
+    reference = deepcopy(helpers.daylog_data)
+    reference_timesheet = helpers.Timesheet(reference)
+    timesheets = [
+        helpers.Timesheet({timestamp: daylog}, save=False)
+        for timestamp, daylog in reference.items()
+    ]
+
+    # Merge one by one
+    while len(timesheets) > 1:
+        timesheets[0].merge(timesheets.pop(1))
+    combined = timesheets.pop()
+
+    assert all(
+        reference_timesheet.record[key].timestamps == combined[key].timestamps
+        for key in combined.record.keys()
+    )
+
+
+def test_reference_semantics(helpers):
+    """Timesheet unaffacted by deletion of data used to create it"""
+    reference = deepcopy(helpers.daylog_data)
+    reference_timesheet = helpers.Timesheet(reference)
+    del reference
+    assert all(
+        reference_timesheet.record[key].timestamps
+        == helpers.daylog_data[key].timestamps
+        for key in reference_timesheet.record.keys()
+    )

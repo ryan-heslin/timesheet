@@ -39,7 +39,7 @@ class Helpers:
             "2022-06-30": 0,
             "2022-07-01": 0,
             "2022-07-02": 0,
-            "2022-07-03": 0,
+            "2022-07-03": 12,
         }
     expected_start = datetime.date.fromisoformat(next(iter(expected_day_times.keys())))
     expected_end = datetime.date.fromisoformat(max(expected_day_times.keys()))
@@ -57,6 +57,8 @@ class Helpers:
             date = "2022-06-29",
             timestamps=[datetime.time(hour=0, minute=10), datetime.time(hour=1)]
         ),
+        "2022-06-30" : DayLog(date = "2022-06-30", timestamps = []), 
+        "2022-07-03" : DayLog(date = "2022-07-03", timestamps = [datetime.time(hour = hour) for hour in range(1, 24, 2) ])
     }
 
     @staticmethod
