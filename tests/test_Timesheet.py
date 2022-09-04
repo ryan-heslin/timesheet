@@ -8,6 +8,7 @@ from os import chdir
 from os import getcwd
 from os import system
 from os.path import join
+from os.path import split
 
 import pytest
 
@@ -53,19 +54,15 @@ def test_from_json(helpers, tmp_path):
 
 
 def test_auto_output_path(helpers, tmp_path):
-    # helpers.touch(f"{tmp_path}/timesheet1.json")
-    # helpers.touch(f"{tmp_path}/timesheet2.json")
-
-    wd = getcwd()
-    chdir(tmp_path)
+         
+    """Default output path is correctly formed if `output_path` is not specified"""
     system(f"touch {tmp_path}/timesheet1.json {tmp_path}/timesheet2.json")
     original = helpers.full_Timesheet(save=False)
     original.write_json(path=None)
-    chdir(wd)
     new = helpers.Timesheet.from_json(
-        data_path=f"{tmp_path}/timesheet3.json", save=False
+        data_path=f"{split(constants.STORAGE_PATH)[0]}/{original.storage_name}1.json", save=False
     )
-    assert original.record[test_date].timestamps == new.record[test_date].timestamps
+    assert original.equals(new)
 
 
 def test_save(helpers, tmp_path):
@@ -374,10 +371,10 @@ def test_equals_different(helpers):
     assert not helpers.full_Timesheet(save = False).equals(helpers.bare_Timesheet)
 
 def test_default_json_path(helpers, tmp_path): 
-    """json extension is automatically added to """
+    """Default path is correctly formed it `output_path` is specified"""
     output_path = f"{tmp_path}/test"
     test = helpers.full_Timesheet(output_path = output_path, save = False)
     test.write_json()
-    result = helpers.Timesheet.from_json(output_path + ".json", save = False)
+    result = helpers.Timesheet.from_json(f"{split(output_path)[0]}/{test.storage_name}1.json", save = False)
     assert test.equals(result)
 

@@ -10,6 +10,7 @@ from os import makedirs
 from os import W_OK
 from os.path import dirname
 from os.path import exists
+from os.path import split
 from copy import deepcopy
 from typing import Dict
 from typing import List
@@ -316,12 +317,16 @@ class Timesheet:
         self._storage_name = kwargs["storage_name"]
         self.creation_time = datetime.datetime.today()
         self.last_save = None
-        self.output_path = kwargs["output_path"]
+        self._output_path = kwargs["output_path"]
         self._storage_path = (
             kwargs["storage_path"]
             if kwargs["storage_path"] is not None
             else constants.STORAGE_PATH
         )
+        # Create storage path if it does not exist already
+        storage_dir = split(self._storage_path)[0]
+        if not exists(storage_dir): 
+            makedirs(storage_dir)
         # Generate default storage name if none provided
         if (arg_name := kwargs["storage_name"]) is None:
             # Get storage names already in use, if any
@@ -358,6 +363,14 @@ class Timesheet:
     @storage_path.setter
     def storage_path(self, storage_path : str) -> None:
         self._storage_path = storage_path
+
+    @property
+    def output_path(self) ->  str:
+        return self._output_path
+
+    @output_path.setter
+    def output_path(self, output_path : str) -> None:
+        self._output_path = output_path
 
     def __str__(self) -> str:
         return f"""A Timesheet object created {self.creation_time}
@@ -570,19 +583,28 @@ class Timesheet:
         stem = self.__class__.__name__.lower()
         return f"{stem}{utils.next_number(stem = stem, names = names)}{extension}"
 
-    def write_json(self, path: str = None) -> "Timesheet":
+    def write_json(self, path: str = None, make_directory = False) -> "Timesheet":
         """
-        Write an instance's day data to JSON.
+        Write an instance's day data to JSON. This makes it possible to copy the instance by caling `Timesheet.from_json` on the path to the created JSON.
 
         :param path str: Optional path to output JSON. Defaults to the instance's :code:`output_path` attribute, or a generated unique name if it is :code:`None`.
         :rtype None:
         """
         if path is None:
-            path = (
-                utils.add_extension(self.output_path, ".json")
-                if self.output_path is not None
-                else self._default_name(names=listdir("."), extension=".json")
-            )
+            # If no path provided, default to {storage_name}.json, in directory of output 
+            # path if provided, otherwise storage path (always set)
+            storage_dir = split(self._output_path if self._output_path is not None else self._storage_path)[0]
+            # If authorized, create target directory if it does not exist.
+            path = f"{storage_dir}/{self._storage_name}{utils.next_number(self._storage_name, listdir(storage_dir))}.json"
+            #path = (
+            #    utils.add_extension(os.path.self.output_path, ".json")
+            #    if self.output_path is not None
+            #    else self._default_name(names=listdir("."), extension=".json")
+            #)
+        else:
+            storage_dir = split(path)[0]
+        if not exists(storage_dir) and make_directory:
+            makedirs(storage_dir)
         with open(path, "w") as f:
             json.dump(self.record, f, default=utils.json_serialize)
 

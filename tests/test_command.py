@@ -15,7 +15,7 @@ date = datetime.date.today().isoformat()
 
 def test_timesheet_installed():
     """Check that binary is available"""
-    assert os.path.exists(ts)
+    assert exists(ts)
 
 
 def test_create_Timesheet(helpers, tmp_path):
