@@ -7,6 +7,7 @@ from itertools import groupby
 from os import chdir
 from os import getcwd
 from os import system
+from os.path import join
 
 import pytest
 
@@ -47,11 +48,11 @@ def test_write_json(helpers, tmp_path):
 def test_from_json(helpers, tmp_path):
     path = "test.json"
     original = helpers.write_json(path=f"{tmp_path}/{path}")
-    new = helpers.Timesheet.from_json(data_path=f"{tmp_path}/{path}")
+    new = helpers.Timesheet.from_json(data_path=f"{tmp_path}/{path}", save = False)
     assert original[test_date].timestamps == new[test_date].timestamps
 
 
-def test_auto_json_path(helpers, tmp_path):
+def test_auto_output_path(helpers, tmp_path):
     # helpers.touch(f"{tmp_path}/timesheet1.json")
     # helpers.touch(f"{tmp_path}/timesheet2.json")
 
@@ -137,16 +138,16 @@ def test_summarize_year(helpers):
 
 def test_write_summary(helpers, tmp_path):
     """Check that `write_json_summary` correctly  writes JSON files of the results"""
-    test = helpers.Timesheet(data=helpers.daylog_data)
-    json_path = f"{tmp_path}/test.json"
+    test = helpers.Timesheet(data=helpers.daylog_data, save = False)
+    output_path = f"{tmp_path}/test.json"
     # Ensure date in week
     latest_date = max(helpers.expected_day_times.keys())
     test.write_json_summary(
         start_date=min(helpers.expected_day_times.keys()),
-        json_path=json_path,
+        output_path=output_path,
         end_date=latest_date,
     )
-    with open(json_path) as f:
+    with open(output_path) as f:
         result = json.load(f)
         assert all(helpers.dict_subset(result, helpers.expected_day_times))
 
@@ -254,7 +255,7 @@ def test_bad_datestamp(helpers, tmp_path):
 
 def test_self_merge(helpers):
     """Merging Timesheet with itself fails"""
-    start = helpers.full_Timesheet()
+    start = helpers.full_Timesheet(save = False)
     with pytest.raises(ValueError):
         start.merge(start)
 
@@ -264,7 +265,7 @@ def test_simple_merge(helpers):
     test = helpers.full_Timesheet(save=False)
     old = test.record
     new = helpers.bare_Timesheet.record
-    test.merge(helpers.bare_Timesheet)
+    test.merge(helpers.bare_Timesheet, save = False)
     old.update(new)
     assert test.record == old
 
@@ -273,15 +274,16 @@ def test_intersect_merge(helpers):
     """Merge where some keys are shared"""
     target_date = "2022-06-27"
     reference = deepcopy(helpers.daylog_data)
-    left = helpers.Timesheet(data=reference)
+    left = helpers.Timesheet(data=reference, save = False)
     right = helpers.Timesheet(
         data={
             target_date: helpers.DayLog(
                 date=target_date, timestamps=[datetime.time(hour=1)]
             )
-        }
+        }, 
+        save = False
     )
-    left.merge(right)
+    left.merge(right, save = False)
     reference[target_date] = helpers.DayLog(
         timestamps=[datetime.time(hour=1)] + reference[target_date].timestamps
     )
@@ -294,21 +296,21 @@ def test_intersect_merge(helpers):
 def test_all_intersect_merge(helpers):
     """Timesheets with entirely shared keys are added correctly"""
     reference = deepcopy(helpers.daylog_data)
-    left = helpers.Timesheet(data=reference)
+    left = helpers.Timesheet(data=reference, save = False)
     new_timestamp = datetime.time(hour=23, minute=3)
     # Create new data with a later timestamp for each key
     new_data = {
         key: helpers.DayLog(date=key, timestamps=[new_timestamp])
         for key in reference.keys()
     }
-    right = helpers.Timesheet(data=new_data)
+    right = helpers.Timesheet(data=new_data, save = False)
     reference = {
         key: helpers.DayLog(
             date=key, timestamps=reference[key].timestamps + [new_timestamp]
         )
         for key in reference.keys()
     }
-    left.merge(right)
+    left.merge(right, save = False)
     assert all(
         left.record[key].timestamps == reference[key].timestamps
         for key in left.record.keys()
@@ -325,10 +327,10 @@ def test_disjoint_merge(helpers):
         )
         for i in range(len(reference))
     }
-    left = helpers.Timesheet(data=reference)
-    right = helpers.Timesheet(data=new)
+    left = helpers.Timesheet(data=reference, save = False)
+    right = helpers.Timesheet(data=new, save = False)
     reference.update(new)
-    left.merge(right)
+    left.merge(right, save = False)
     assert all(
         left.record[key].timestamps == reference[key].timestamps
         for key in left.record.keys()
@@ -337,7 +339,7 @@ def test_disjoint_merge(helpers):
 
 def test_sequential_merge(helpers):
     reference = deepcopy(helpers.daylog_data)
-    reference_timesheet = helpers.Timesheet(reference)
+    reference_timesheet = helpers.Timesheet(reference, save = False)
     timesheets = [
         helpers.Timesheet({timestamp: daylog}, save=False)
         for timestamp, daylog in reference.items()
@@ -345,7 +347,7 @@ def test_sequential_merge(helpers):
 
     # Merge one by one
     while len(timesheets) > 1:
-        timesheets[0].merge(timesheets.pop(1))
+        timesheets[0] = timesheets[0].merge(timesheets.pop(1), save = False)
     combined = timesheets.pop()
 
     assert all(
@@ -357,10 +359,25 @@ def test_sequential_merge(helpers):
 def test_reference_semantics(helpers):
     """Timesheet unaffacted by deletion of data used to create it"""
     reference = deepcopy(helpers.daylog_data)
-    reference_timesheet = helpers.Timesheet(reference)
+    reference_timesheet = helpers.Timesheet(reference, save = False)
     del reference
     assert all(
         reference_timesheet.record[key].timestamps
         == helpers.daylog_data[key].timestamps
         for key in reference_timesheet.record.keys()
     )
+
+def test_equals_equal(helpers):
+    assert helpers.full_Timesheet(save = False).equals(helpers.full_Timesheet(save = False))
+
+def test_equals_different(helpers):
+    assert not helpers.full_Timesheet(save = False).equals(helpers.bare_Timesheet)
+
+def test_default_json_path(helpers, tmp_path): 
+    """json extension is automatically added to """
+    output_path = f"{tmp_path}/test"
+    test = helpers.full_Timesheet(output_path = output_path, save = False)
+    test.write_json()
+    result = helpers.Timesheet.from_json(output_path + ".json", save = False)
+    assert test.equals(result)
+

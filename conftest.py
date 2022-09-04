@@ -3,7 +3,7 @@ import json
 import os
 import re
 import subprocess
-from typing import Generator
+from typing import Generator, Dict
 
 import pytest
 
@@ -13,15 +13,18 @@ from timesheet import constants
 class Helpers:
     """See https://stackoverflow.com/questions/33508060/crjsonify-and-import-helper-functions-in-tests-without-creating-packages-in-test-di for this hack"""
 
-
+    # Classes for convenience
     ts =  "./.venv/bin/timesheet"
     TimeAggregate = Timesheet.TimeAggregate
     DiffTime = Timesheet.DiffTime
     DayLog = Timesheet.DayLog
     Timesheet = Timesheet.Timesheet
+
     bare_DiffTime = DiffTime(1, 2, 3, 1000)
     bare_DayLog = DayLog()
     bare_Timesheet = Timesheet(save=False)
+    
+    # Example timestamps
     timestamps = [
         datetime.time(0, 0, 0, 0),
         datetime.time(1, 0, 0, 0),
@@ -59,6 +62,15 @@ class Helpers:
         ),
         "2022-06-30" : DayLog(date = "2022-06-30", timestamps = []), 
         "2022-07-03" : DayLog(date = "2022-07-03", timestamps = [datetime.time(hour = hour) for hour in range(1, 24, 2) ])
+    }
+    # Extra set of data with no common keys
+    @staticmethod
+    def alternate_daylog_data(month : int) -> Dict[str, "DayLog"]:
+        return {
+        datetime.date.isoformat(datetime.date(year = 2022, month = 1, day = i + 1)): __class__.DayLog(
+            timestamps=[datetime.time(hour=3, second=20)]
+        )
+        for i in range(len(__class__.daylog_data))
     }
 
     @staticmethod
@@ -138,7 +150,7 @@ class Helpers:
 
     @staticmethod
     def test_summarize(aggregate, expected): 
-        test = __class__.Timesheet(data=__class__.daylog_data)
+        test = __class__.Timesheet(data=__class__.daylog_data, save = False)
 
         assert  all(__class__.dict_subset(test.summarize(aggregate = aggregate), expected))
 

@@ -10,6 +10,7 @@ from os import makedirs
 from os import W_OK
 from os.path import dirname
 from os.path import exists
+from copy import deepcopy
 from typing import Dict
 from typing import List
 from typing import TypeVar
@@ -122,7 +123,16 @@ class DayLog:
         )
         self.creation_time = datetime.datetime.today()
 
-    def concat_timestamps(self, timestamps: time_list = None) -> None:
+    def equals(self, other: "DayLog") -> bool: 
+        """
+        Determines whether one instance and another have identical timestamp sequences. 
+
+        :param other "DayLog": A :code:`DayLog` instance
+        :rtype bool: :code:`True` if the sequences are identical, :code:`False` otherwise.
+        """
+        return self.timestamps == other.timestamps
+
+    def concat_timestamps(self, timestamps: time_list = None) -> "DayLog":
         """
         Concatenate additional timestamps to those stored in the calling instance. Added timestamps must all be later than the last timestamp stored in the
         caller and sorted in ascending order.
@@ -145,24 +155,26 @@ class DayLog:
                 f"Earliest new timestamp {converted[0]} is identical to or earlier than latest recorded timestamp {self.timestamps[-1]}"
             )
         self.timestamps.extend(converted)
+        return self
 
     def __len__(self) -> int:
         return len(self.timestamps)
 
     @staticmethod
-    def yyyymmdd(timestamp: Union[datetime.datetime, None] = None):
+    def yyyymmdd(timestamp: Union[datetime.datetime, datetime.date, None] = None):
         """
         Format a date YYYY-MM-DD
 
         :param timestamp Union[datetime.datetime,  None]: :code:`datetime.datetime` instance
         """
-        timestamp = datetime.datetime.today() if timestamp is None else timestamp
-        return datetime.datetime.strftime(timestamp, "%Y-%m-%d")
+        date_value = datetime.datetime.today() if timestamp is None else timestamp
+        parser = datetime.datetime.strftime if isinstance(timestamp, datetime.datetime) else datetime.date.strftime 
+        return parser(date_value, "%Y-%m-%d")
 
     def __str__(self) -> str:
         return "\n".join(
             [
-                f"A day log object for {self.yyyymmdd(self.date)}, created {self.creation_time}"
+                f"A day log object for {__class__.yyyymmdd(self.date)}, created {self.creation_time}"
             ]
             + [str(x) for x in self.timestamps]
         )
@@ -270,7 +282,7 @@ class Timesheet:
         storage_path: str = None,
         storage_name: str = None,
         save: bool = True,
-        json_path: str = None,
+        output_path: str = None,
     ) -> None:
         """
         Initialize a :code:`Timesheet` instance.
@@ -279,7 +291,7 @@ class Timesheet:
         :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
-        :param json_path str:
+        :param output_path str:
         :rtype None:
         """
 
@@ -289,7 +301,7 @@ class Timesheet:
             storage_path=storage_path,
             storage_name=storage_name,
             save=save,
-            json_path=json_path,
+            output_path=output_path,
         )
 
     def _constructor(self, **kwargs) -> None:
@@ -301,11 +313,11 @@ class Timesheet:
         data = { key : data[key] for key in sorted(data.keys(), key = lambda k: datetime.date.fromisoformat(k))}
         #utils.validate_datestamps(data.keys())
         self.record = data
-        self.storage_name = kwargs["storage_name"]
+        self._storage_name = kwargs["storage_name"]
         self.creation_time = datetime.datetime.today()
         self.last_save = None
-        self.json_path = kwargs["json_path"]
-        self.storage_path = (
+        self.output_path = kwargs["output_path"]
+        self._storage_path = (
             kwargs["storage_path"]
             if kwargs["storage_path"] is not None
             else constants.STORAGE_PATH
@@ -315,21 +327,37 @@ class Timesheet:
             # Get storage names already in use, if any
             overwrite = True
             used_names = []
-            if exists(self.storage_path):
+            if exists(self._storage_path):
                 used_names.extend(
                     utils.use_shelve_file(
                         storage_name=None,
                         func=lambda f: [k for k in f],
-                        path=self.storage_path,
+                        path=self._storage_path,
                     )
                 )
-            self.storage_name = self._default_name(names=used_names, extension="")
+            self._storage_name = self._default_name(names=used_names, extension="")
         else:
             overwrite = False
-            self.storage_name = arg_name
+            self._storage_name = arg_name
 
         if kwargs.get("save"):
             self.save(overwrite=overwrite)
+
+    @property
+    def storage_name(self) -> str: 
+        return self._storage_name
+
+    @storage_name.setter
+    def storage_name(self, storage_name : str) -> None: 
+        self._storage_name = storage_name
+
+    @property
+    def storage_path(self) ->  str:
+        return self._storage_path
+
+    @storage_path.setter
+    def storage_path(self, storage_path : str) -> None:
+        self._storage_path = storage_path
 
     def __str__(self) -> str:
         return f"""A Timesheet object created {self.creation_time}
@@ -338,13 +366,27 @@ class Timesheet:
     def __repr__(self) -> str:
         return self.__str__()
 
+    def equals(self, other: "Timesheet") -> bool: 
+        """
+        Determine whether two instances contain the same data.              
+
+        :param other "Timesheet": Another :code:`Timesheet` instance.
+        :rtype bool: :code:`True` if the data are identical, :code:`False` otherwise
+        """
+        # Not identical if keys not all equal
+        if not (own_keys := sorted(self.record.keys())) == sorted(other.record.keys()):
+            return False
+
+        # Must use equals method instead of == because the former ignores different creation times
+        return all(self.record[datestamp].equals(other.record[datestamp]) for datestamp in own_keys)
+
     def save(
         self,
         path: str = None,
         storage_name: str = None,
         overwrite: bool = False,
         create_directory: bool = False,
-    ) -> None:
+    ) -> "Timesheet":
         """
         Save this instance to a :code:`shelve` object at a specified path, using a specified name.
 
@@ -354,22 +396,20 @@ class Timesheet:
         :param create_directory bool: Optional logical indivating whether to create the directory containing :code:`storage_path` if it does not exist. Default :code:`False`.
         :rtype None:
         """
-        storage_name = self.storage_name if storage_name is None else storage_name
-        path = self.storage_path if path is None else path
+        storage_name = self._storage_name if storage_name is None else storage_name
+        path = self._storage_path if path is None else path
         target = dirname(path)
         if not access(target, W_OK):
-            print(f"You lack write permission for directory {target}")
-            return
+            raise PermissionError(f"You lack write permission for directory {target}")
         if not exists(target):
             if create_directory:
                 makedirs(target)
             else:
-                print(
+                raise FileNotFoundError(
                     f"Cannot save: {target} does not exist, and create_directory = False"
                 )
-                return
 
-        with shelve.open(path, "c") as f:
+        with shelve.open(path, "c", writeback = True) as f:
             # Create default storage name if unspecified
             if storage_name is None:
                 storage_name = self._default_name(list(f.keys()))
@@ -385,9 +425,12 @@ class Timesheet:
                     != ""
                 )
             ):
-                return
+                return self
+            copy = deepcopy(self)
             self.last_save = datetime.datetime.today()
-            f[storage_name] = self
+            f[storage_name] = copy
+        
+        return self
 
     @staticmethod
     def load(storage_name: str, storage_path: str = None) -> "Timesheet":
@@ -441,7 +484,7 @@ class Timesheet:
         self,
         date: Union[datetime.date, str] = None,
         timestamps: List[datetime.datetime] = None,
-    ) -> None:
+    ) -> "Timesheet":
         date = datetime.datetime.today() if date is None else date
         timestamps = (
             [datetime.datetime.today()]
@@ -466,8 +509,8 @@ class Timesheet:
         storage_path: str = None,
         storage_name: str = None,
         save: bool = True,
-        json_path: str = None,
-    ) -> None:
+        output_path: str = None,
+    ) -> "Timesheet":
 
         """
         Initialize a :code:`Timesheet` instance.
@@ -476,7 +519,7 @@ class Timesheet:
         :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
-        :param json_path str:
+        :param output_path str:
         :rtype None:
         """
         # Find common keys
@@ -504,19 +547,20 @@ class Timesheet:
             storage_path=storage_path,
             storage_name=storage_name,
             save=save,
-            json_path=json_path,
+            output_path=output_path,
         )
+        return self
 
     def __getitem__(self, k: str) -> DayLog:
         return self.record[k]
 
     @property
-    def json_path(self) -> str:
-        return self._json_path
+    def output_path(self) -> str:
+        return self._output_path
 
-    @json_path.setter
-    def json_path(self, path: str) -> None:
-        self._json_path = path
+    @output_path.setter
+    def output_path(self, path: str) -> None:
+        self._output_path = path
 
     def __len__(self) -> int:
         return len(self.record)
@@ -526,21 +570,23 @@ class Timesheet:
         stem = self.__class__.__name__.lower()
         return f"{stem}{utils.next_number(stem = stem, names = names)}{extension}"
 
-    def write_json(self, path: str = None) -> None:
+    def write_json(self, path: str = None) -> "Timesheet":
         """
         Write an instance's day data to JSON.
 
-        :param path str: Optional path to output JSON. Defaults to the instance's :code:`json_path` attribute, or a generated unique name if it is :code:`None`.
+        :param path str: Optional path to output JSON. Defaults to the instance's :code:`output_path` attribute, or a generated unique name if it is :code:`None`.
         :rtype None:
         """
         if path is None:
             path = (
-                self.json_path
-                if self.json_path is not None
+                utils.add_extension(self.output_path, ".json")
+                if self.output_path is not None
                 else self._default_name(names=listdir("."), extension=".json")
             )
         with open(path, "w") as f:
             json.dump(self.record, f, default=utils.json_serialize)
+
+        return self
 
     def summarize(
         self,
@@ -562,7 +608,7 @@ class Timesheet:
 
     def write_json_summary(
         self,
-        json_path: str,
+        output_path: str,
         start_date: Union[datetime.date, str] = datetime.date.min,
         end_date: Union[datetime.date, str] = datetime.date.max,
         aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
@@ -571,7 +617,7 @@ class Timesheet:
         summary = self.summarize(
             start_date=start_date, end_date=end_date, aggregate=aggregate
         )
-        with open(json_path, "w") as f:
+        with open(output_path, "w") as f:
             json.dump(summary, f)
 
     def write_csv_summary(
@@ -601,7 +647,7 @@ class Timesheet:
         storage_path: str = None,
         storage_name: str = None,
         save: bool = True,
-        json_path: str = None,
+        output_path: str = None,
     ) -> "Timesheet":
         """
         Create a :code:`Timesheet` instance from a path to a JSON representation of an instance's data.
@@ -611,7 +657,7 @@ class Timesheet:
         :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
-        :param json_path str: [TODO:description]
+        :param output_path str: [TODO:description]
         :rtype "Timesheet": Created :code:`Timesheet instance`
         """
         with open(data_path) as f:
@@ -622,6 +668,6 @@ class Timesheet:
             storage_path=storage_path,
             storage_name=storage_name,
             save=save,
-            json_path=json_path,
+            output_path=output_path,
         )
         return instance

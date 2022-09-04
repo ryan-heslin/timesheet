@@ -1,6 +1,6 @@
 import datetime
 import click
-from typing import Union
+from typing import Union, List
 
 from timesheet import constants
 from timesheet import Timesheet
@@ -46,14 +46,14 @@ locate_timesheet = factory.create()
 
 # )
 @click.option(
-    "--json_path", help="JSON path attribute of created instance", default=None
+    "--output_path", help="JSON path attribute of created instance", default=None
 )
 @click.option("--json_source", help="Path to JSON file from which to load data")
 @click.option("--verbose", default=False, help=constants.HELP_MAP["verbose"])
 @timesheet.command(name="create", cls=locate_timesheet)
 def create(
     json_source=None,
-    json_path=None,
+    output_path=None,
     storage_path=constants.STORAGE_PATH,
     storage_name=None,
     verbose=False,
@@ -62,7 +62,7 @@ def create(
         Timesheet.Timesheet(
             storage_path=storage_path,
             storage_name=storage_name,
-            json_path=json_path,
+            output_path=output_path,
             save=True,
         )
     else:
@@ -70,9 +70,10 @@ def create(
             data_path=json_source,
             storage_path=storage_path,
             storage_name=storage_name,
-            json_path=json_path,
+            output_path=output_path,
             save=True,
         )
+    # TODO add some way to overwrite
     if verbose:
         click.echo(
             f"Created Timesheet instance named {storage_name} at {storage_path} "
@@ -132,16 +133,16 @@ def summarize(
    
     try:
         # Get appropriate aggregate object
-        aggregate = TimeAggregate.__dict__[aggregate.title() ]
+        aggregate_value : TimeAggregate.TimeAggregate = TimeAggregate.__dict__[aggregate.title() ]
     except KeyError as e: 
-        print(f"Invalid aggregate {aggregate}; must choose one of 'day', 'week', 'month', or 'year'")
+        click.echo(f"Invalid aggregate {aggregate}; must choose one of 'day', 'week', 'month', or 'year'")
         raise e
 
 
     if output_path is None:
-        instance.summarize(start_date = start_date, end_date=end_date, aggregate = aggregate)
+        instance.summarize(start_date = start_date, end_date=end_date, aggregate = aggregate_value)
     else:
-        instance.write_json_summary(json_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate)
+        instance.write_json_summary(output_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate_value)
 
 
 #@timesheet.command()
@@ -151,11 +152,11 @@ def summarize(
 #    help=constants.HELP_MAP["storage_path"],
 #    default=constants.STORAGE_PATH,
 #)
-@click.option("--json_path", help="Path to JSON output", default=None)
+@click.option("--output_path", help="Path to JSON output", default=None)
 @timesheet.command(name="jsonify", cls=locate_timesheet)
-def jsonify(storage_name, storage_path=constants.STORAGE_PATH, json_path=None):
+def jsonify(storage_name, storage_path=constants.STORAGE_PATH, output_path=None):
     instance = Timesheet.Timesheet.load(storage_name, storage_path)
-    instance.write_json(path=json_path)
+    instance.write_json(path=output_path)
     return 0
 
 
@@ -177,6 +178,38 @@ def list(storage_path : str =constants.STORAGE_PATH) -> dict:
         func=lambda f: {k: v for k, v in f.items()}, path=storage_path
     )
     for k, v in f.items():
-        print(f"{k}:")
-        print(v)
+        click.echo(f"{k}:")
+        click.echo(v)
     return f
+
+# https://click.palletsprojects.com/en/5.x/arguments/# Recommends "graceful no-op" if varaidic arg is empty, so `tiemsheets` is optional despite conceptually being mandatory
+@click.option("--timesheets", multiple = True, 
+        help = "TODO", default = [])
+@click.option("--storage_path", help = "help" , default = constants.STORAGE_PATH)
+@click.option("--storage_name", help = "help" , default = None)
+@click.option("--output_path", help = "help" , default = None)
+@timesheet.command(name = "merge")
+def merge(timesheets : List[str] = [], 
+        output_path : str =None,
+        storage_path : str =constants.STORAGE_PATH,
+        storage_name : str =None,
+        verbose : bool =False,
+):
+    loaded_timesheets = [ Timesheet.Timesheet.load(*string.split("=")) for string in timesheets]
+    # Merge each timesheet in sequence with original
+    # Only need to save final version, to avoid side effects
+    if loaded_timesheets == []:
+        return None
+    while len(loaded_timesheets) > 1:
+        loaded_timesheets[0].merge(loaded_timesheets.pop(1), save = False)
+    combined = loaded_timesheets.pop()
+
+    # Set output names as requested
+    combined.storage_name = storage_name
+    combined.storage_path = storage_path
+    combined.output_path = output_path
+
+    # Save output
+    combined.save(create_directory = True, overwrite=True)
+    # TODO fix bug of saves to new names not persisting
+    return 1

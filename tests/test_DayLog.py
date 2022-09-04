@@ -59,3 +59,10 @@ def test_DiffTime_sub2(helpers):
 def test_bad_timestamp(helpers):
     with pytest.raises(ValueError):
         helpers.full_DayLog().concat_timestamps([datetime.time()])
+
+def test_equals_equal(helpers):
+    assert helpers.full_DayLog().equals(helpers.full_DayLog())
+
+def test_equals_different(helpers):
+    assert not helpers.full_DayLog().equals(helpers.bare_DayLog)
+

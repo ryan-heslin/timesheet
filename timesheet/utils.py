@@ -6,6 +6,9 @@ from glob import glob
 from os import getcwd
 from os import listdir
 from os.path import exists
+from os.path import splitext
+from os.path import join
+from os.path import split
 from typing import Any
 from typing import Iterable
 from typing import Union
@@ -191,7 +194,7 @@ def is_interactive():
 
 def handle_date_arg(
     date: Union[datetime.date, str, None], default: Any = None, allow_None=False
-) -> datetime.date:
+) -> Any:
     if isinstance(date, str):
         date = datetime.date.fromisoformat(date)
     elif date is None:
@@ -200,3 +203,9 @@ def handle_date_arg(
         else:
             raise ValueError(f"{None!r} not allowed as a date value")
     return date
+
+# Replace (or set) a path's extension
+def add_extension(path : str, extension : str) -> str: 
+    stem, basename = split(path)
+    return join(stem, splitext(basename)[0]) + extension
+

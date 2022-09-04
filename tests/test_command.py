@@ -1,11 +1,11 @@
 import json
 import os
 from os.path import exists
+from copy import deepcopy
 import re
 import datetime
 import shelve
 
-import pytest
 from timesheet import Timesheet
 
 ts = "./.venv/bin/timesheet"
@@ -28,13 +28,13 @@ def test_create_Timesheet(helpers, tmp_path):
 
 
 def test_jsonify(helpers, tmp_path):
-    path, json_path = helpers.make_paths(tmp_path, "test", "test.json")
+    path, output_path = helpers.make_paths(tmp_path, "test", "test.json")
     os.system(
-        f"{ts} create --json_path {json_path} --storage_path {path} --storage_name test"
+        f"{ts} create --output_path {output_path} --storage_path {path} --storage_name test"
     )
-    os.system(f"{ts} jsonify --storage_name test --json_path {json_path} --storage_path {path}")
+    os.system(f"{ts} jsonify --storage_name test --output_path {output_path} --storage_path {path}")
     os.system(
-        f"{ts} create --json_source {json_path}  --storage_name test2 --storage_path {path}2"
+        f"{ts} create --json_source {output_path}  --storage_name test2 --storage_path {path}2"
     )
     first = helpers.Timesheet.load(storage_name="test", storage_path=path).record
     second = helpers.Timesheet.load(
@@ -116,4 +116,53 @@ def test_delete_force(helpers, tmp_path):
     # Storage name should be gone if file deleted
     with shelve.open(storage_path) as f:
         assert not storage_name in f.keys()
+
+
+def test_single_merge(helpers, tmp_path):
+    """No-op merge with just one instance"""
+    storage_name = "test"
+    storage_path = f"{tmp_path}/test"
+    instance = Timesheet.Timesheet(data = helpers.daylog_data, save = True, storage_name = storage_name, storage_path = storage_path)
+    comparison = instance.record
+    os.system(f"{ts} merge f{storage_name}=f{storage_path} --storage_path = {storage_path} --storage_name {storage_name}")
+    os.system(f"{ts} jsonify --storage_name {storage_name} --storage_path {storage_path} --output_path {tmp_path}/test.json")
+    os.system(
+            f"{ts} create --json_source {tmp_path}/test.json --storage_name test2 --storage_path {storage_path}"
+        )
+    result = helpers.Timesheet.load(
+        storage_name="test2", storage_path=storage_path
+    ).record
+    assert all(result[k].timestamps == comparison[k].timestamps for k in result.keys())
+
+def test_disjoint_merge(helpers, tmp_path): 
+    storage_name1 = "test1"
+    storage_path = f"{tmp_path}/test"
+    storage_name2 = "test2"
+    result_storage_name = "result"
+    output_path = f"{tmp_path}/test.json"
+
+    data1 = deepcopy(helpers.daylog_data)
+    data2 = helpers.alternate_daylog_data(month = 1)
+
+    instance1 = Timesheet.Timesheet(data = data1, save = True, storage_name = storage_name1, storage_path = storage_path)
+    instance2 = Timesheet.Timesheet(data = data2,  save = True, storage_name = storage_name2, storage_path = storage_path)
+        
+    os.system(f"{ts} merge --timesheets {storage_name1}={storage_path} --timesheets '{storage_name2}={storage_path}' --storage_name {result_storage_name} --storage_path {storage_path}")
+    os.system(f"{ts} jsonify --storage_name {result_storage_name} --storage_path {storage_path} --output_path {tmp_path}/test.json")
+    os.system(
+            f"{ts} create --json_source {output_path} --storage_name test2 --storage_path {storage_path}"
+        )
+
+    data1.update(data2)
+    result = helpers.Timesheet.load(
+        storage_name=result_storage_name, storage_path=storage_path
+    )
+    instance1.merge(instance2, save = False)
+    assert result.equals(instance1)
+
+def test_intersect_merge(helpers):
+    """Merge where some keys are shared"""
+
+    
+
 
