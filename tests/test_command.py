@@ -147,7 +147,8 @@ def test_disjoint_merge(helpers, tmp_path):
     instance1 = Timesheet.Timesheet(data = data1, save = True, storage_name = storage_name1, storage_path = storage_path)
     instance2 = Timesheet.Timesheet(data = data2,  save = True, storage_name = storage_name2, storage_path = storage_path)
         
-    os.system(f"{ts} merge --timesheets {storage_name1}={storage_path} --timesheets '{storage_name2}={storage_path}' --storage_name {result_storage_name} --storage_path {storage_path}")
+    os.system(f"{ts} merge --timesheets {storage_name1}={storage_path} --timesheets {storage_name2}={storage_path} --storage_name {result_storage_name} --storage_path {storage_path}")
+    assert result_storage_name in helpers.Timesheet.list(storage_path)
     os.system(f"{ts} jsonify --storage_name {result_storage_name} --storage_path {storage_path} --output_path {tmp_path}/test.json")
     os.system(
             f"{ts} create --json_source {output_path} --storage_name test2 --storage_path {storage_path}"
@@ -162,6 +163,47 @@ def test_disjoint_merge(helpers, tmp_path):
 
 def test_intersect_merge(helpers):
     """Merge where some keys are shared"""
+    target_date = "2022-06-27"
+    reference = deepcopy(helpers.daylog_data)
+    storage_name = "result"
+    left = helpers.Timesheet(data=reference)
+    right = helpers.Timesheet(
+        data={
+            target_date: helpers.DayLog(
+                date=target_date, timestamps=[datetime.time(hour=1)]
+            )
+        }
+    )
+    os.system(f"{ts} merge --timesheets {left.storage_name}={left.storage_path} --timesheets {right.storage_name}={right.storage_path} --storage_name result")
+    reference[target_date] = helpers.DayLog(
+        timestamps=[datetime.time(hour=1)] + reference[target_date].timestamps
+    )
+    result = Timesheet.Timesheet.load(storage_name = storage_name)
+    assert all(
+        result.record[key].timestamps == reference[key].timestamps
+        for key in result.record.keys()
+    )
+
+
+def test_sequential_merge(helpers):
+    return True
+    reference = deepcopy(helpers.daylog_data)
+    reference_timesheet = helpers.Timesheet(reference, save = False)
+    timesheets = [
+        helpers.Timesheet({timestamp: daylog}, save=False)
+        for timestamp, daylog in reference.items()
+    ]
+
+    # Merge one by one
+    while len(timesheets) > 1:
+        timesheets[0] = timesheets[0].merge(timesheets.pop(1), save = False)
+    combined = timesheets.pop()
+
+    assert all(
+        reference_timesheet.record[key].timestamps == combined[key].timestamps
+        for key in combined.record.keys()
+    )
+
 
     
 

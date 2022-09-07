@@ -1,6 +1,8 @@
 import datetime
 import json
 import os
+from os.path import expanduser
+from tempfile import TemporaryDirectory
 import re
 import subprocess
 from typing import Generator, Dict
@@ -9,6 +11,12 @@ import pytest
 
 from timesheet import Timesheet
 from timesheet import constants
+
+temp_dir = TemporaryDirectory()
+
+# For testing default storage paths
+os.environ["TIMESHEET_DIR"] = f"{temp_dir.name}/timesheets"
+
 
 class Helpers:
     """See https://stackoverflow.com/questions/33508060/crjsonify-and-import-helper-functions-in-tests-without-creating-packages-in-test-di for this hack"""

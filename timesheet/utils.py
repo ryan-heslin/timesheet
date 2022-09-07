@@ -3,12 +3,12 @@ import re
 import shelve
 import sys
 from glob import glob
-from os import getcwd
-from os import listdir
+from os import getenv
 from os.path import exists
 from os.path import splitext
 from os.path import join
 from os.path import split
+from os.path import expanduser
 from typing import Any
 from typing import Iterable
 from typing import Union
@@ -48,6 +48,9 @@ def validate_datestamps(datestamps: Iterable[str]) -> bool:
     except ValueError as e:
         raise e
 
+def storage_path():
+     return getenv("TIMESHEET_DIR", expanduser("~/.timesheet/timesheets"))
+
 
 def next_number(stem, names):
     if names == []:
@@ -66,7 +69,7 @@ def next_number(stem, names):
 def use_shelve_file(
     func, storage_name: str = None, path: str = None, confirm_prompt: str = None
 ) -> Any:
-    path = f"{constants.STORAGE_PATH}" if path is None else path
+    path = f"{storage_path()}" if path is None else path
     if not exists(path):
         raise FileNotFoundError(f"{path!r} does not exist")
     with shelve.open(path) as f:

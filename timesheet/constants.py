@@ -1,8 +1,6 @@
-from os.path import expanduser
 from os import getenv
 import datetime
 
-STORAGE_PATH = getenv("TIMESHEET_DIR", expanduser("~/.timesheet/timesheets"))
 
 # Commands help
 HELP_MAP = {

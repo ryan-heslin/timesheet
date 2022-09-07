@@ -20,7 +20,7 @@ def timesheet():
 @click.option(
     "--storage_path",
     help=constants.HELP_MAP["storage_path"],
-    default=constants.STORAGE_PATH,
+    default=utils.storage_path(),
 )
 @timesheet.command(name="locate_timesheet")
 # Actually loads given timesheet; errors are
@@ -41,7 +41,7 @@ locate_timesheet = factory.create()
 # @click.argument(
 # "--storage_path",
 # help=constants.HELP_MAP["storage_path"],
-# default=constants.STORAGE_PATH,
+# default=utils.storage_path(),
 # )
 
 # )
@@ -54,7 +54,7 @@ locate_timesheet = factory.create()
 def create(
     json_source=None,
     output_path=None,
-    storage_path=constants.STORAGE_PATH,
+    storage_path=utils.storage_path(),
     storage_name=None,
     verbose=False,
 ):
@@ -150,11 +150,11 @@ def summarize(
 #@click.option(
 #    "--storage_path",
 #    help=constants.HELP_MAP["storage_path"],
-#    default=constants.STORAGE_PATH,
+#    default=utils.storage_path(),
 #)
 @click.option("--output_path", help="Path to JSON output", default=None)
 @timesheet.command(name="jsonify", cls=locate_timesheet)
-def jsonify(storage_name, storage_path=constants.STORAGE_PATH, output_path=None):
+def jsonify(storage_name, storage_path=utils.storage_path(), output_path=None):
     instance = Timesheet.Timesheet.load(storage_name, storage_path)
     instance.write_json(path=output_path)
     return 0
@@ -170,10 +170,10 @@ def delete(storage_name, storage_path, force=False):
 @timesheet.command()
 @click.option(
     "--storage_path",
-    default=constants.STORAGE_PATH,
+    default=utils.storage_path(),
     help=constants.HELP_MAP["storage_path"],
 )
-def list(storage_path : str =constants.STORAGE_PATH) -> dict:
+def list(storage_path : str =utils.storage_path()) -> dict:
     f = utils.use_shelve_file(
         func=lambda f: {k: v for k, v in f.items()}, path=storage_path
     )
@@ -185,16 +185,17 @@ def list(storage_path : str =constants.STORAGE_PATH) -> dict:
 # https://click.palletsprojects.com/en/5.x/arguments/# Recommends "graceful no-op" if varaidic arg is empty, so `tiemsheets` is optional despite conceptually being mandatory
 @click.option("--timesheets", multiple = True, 
         help = "TODO", default = [])
-@click.option("--storage_path", help = "help" , default = constants.STORAGE_PATH)
+@click.option("--storage_path", help = "help" , default = utils.storage_path())
 @click.option("--storage_name", help = "help" , default = None)
 @click.option("--output_path", help = "help" , default = None)
 @timesheet.command(name = "merge")
 def merge(timesheets : List[str] = [], 
         output_path : str =None,
-        storage_path : str =constants.STORAGE_PATH,
+        storage_path : str =utils.storage_path(),
         storage_name : str =None,
         verbose : bool =False,
 ):
+    breakpoint()
     loaded_timesheets = [ Timesheet.Timesheet.load(*string.split("=")) for string in timesheets]
     # Merge each timesheet in sequence with original
     # Only need to save final version, to avoid side effects

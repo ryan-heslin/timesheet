@@ -14,6 +14,7 @@ import pytest
 
 from timesheet import constants
 from timesheet import TimeAggregate
+from timesheet import utils
 
 test_date = "2022-06-19"
 test_datestamp = datetime.date.fromisoformat(test_date)
@@ -60,7 +61,7 @@ def test_auto_output_path(helpers, tmp_path):
     original = helpers.full_Timesheet(save=False)
     original.write_json(path=None)
     new = helpers.Timesheet.from_json(
-        data_path=f"{split(constants.STORAGE_PATH)[0]}/{original.storage_name}1.json", save=False
+        data_path=f"{split(utils.storage_path())[0]}/{original.storage_name}1.json", save=False
     )
     assert original.equals(new)
 
@@ -327,11 +328,8 @@ def test_disjoint_merge(helpers):
     left = helpers.Timesheet(data=reference, save = False)
     right = helpers.Timesheet(data=new, save = False)
     reference.update(new)
-    left.merge(right, save = False)
-    assert all(
-        left.record[key].timestamps == reference[key].timestamps
-        for key in left.record.keys()
-    )
+    left.merge(right, save = True)
+    assert all(left.record[key] == reference[key] for key in left.record.keys())
 
 
 def test_sequential_merge(helpers):

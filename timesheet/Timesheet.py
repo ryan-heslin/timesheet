@@ -321,7 +321,7 @@ class Timesheet:
         self._storage_path = (
             kwargs["storage_path"]
             if kwargs["storage_path"] is not None
-            else constants.STORAGE_PATH
+            else utils.storage_path()
         )
         # Create storage path if it does not exist already
         storage_dir = split(self._storage_path)[0]
@@ -439,9 +439,7 @@ class Timesheet:
                 )
             ):
                 return self
-            copy = deepcopy(self)
-            self.last_save = datetime.datetime.today()
-            f[storage_name] = copy
+            f[storage_name] = self
         
         return self
 
