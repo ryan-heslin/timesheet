@@ -186,25 +186,17 @@ def test_intersect_merge(helpers):
 
 
 def test_sequential_merge(helpers):
-    return True
     reference = deepcopy(helpers.daylog_data)
     reference_timesheet = helpers.Timesheet(reference, save = False)
     timesheets = [
-        helpers.Timesheet({timestamp: daylog}, save=False)
+        helpers.Timesheet({timestamp: daylog}, save=True)
         for timestamp, daylog in reference.items()
     ]
+    args = "".join(f" --timesheets {ts.storage_name}={ts.storage_path}" for ts in timesheets)
+    storage_name = "result"
 
     # Merge one by one
-    while len(timesheets) > 1:
-        timesheets[0] = timesheets[0].merge(timesheets.pop(1), save = False)
-    combined = timesheets.pop()
+    os.system(f"{ts} merge {args} --storage_name {storage_name}")
+    result = Timesheet.Timesheet.load(storage_name = storage_name)
 
-    assert all(
-        reference_timesheet.record[key].timestamps == combined[key].timestamps
-        for key in combined.record.keys()
-    )
-
-
-    
-
-
+    assert reference_timesheet.equals(result)

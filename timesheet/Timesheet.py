@@ -1,17 +1,15 @@
 import csv
 import datetime
 import json
+import os.path
 import shelve
 from functools import lru_cache
 from functools import reduce
-from os import access
 from os import listdir
 from os import makedirs
-from os import W_OK
 from os.path import dirname
 from os.path import exists
 from os.path import split
-from copy import deepcopy
 from typing import Dict
 from typing import List
 from typing import TypeVar
@@ -103,9 +101,7 @@ class DayLog:
     hour_conversions = {"days": 24, "seconds": 1 / 3600, "microseconds": 1 / 3.6e9}
 
     def __init__(
-        self,
-        date: Union[datetime.date, str, None] = None,
-        timestamps: time_list = None
+        self, date: Union[datetime.date, str, None] = None, timestamps: time_list = None
     ) -> None:
         """
         Initialize DayLog instance. This class records a series of timestamps within the
@@ -124,9 +120,9 @@ class DayLog:
         )
         self.creation_time = datetime.datetime.today()
 
-    def equals(self, other: "DayLog") -> bool: 
+    def equals(self, other: "DayLog") -> bool:
         """
-        Determines whether one instance and another have identical timestamp sequences. 
+        Determines whether one instance and another have identical timestamp sequences.
 
         :param other "DayLog": A :code:`DayLog` instance
         :rtype bool: :code:`True` if the sequences are identical, :code:`False` otherwise.
@@ -169,7 +165,11 @@ class DayLog:
         :param timestamp Union[datetime.datetime,  None]: :code:`datetime.datetime` instance
         """
         date_value = datetime.datetime.today() if timestamp is None else timestamp
-        parser = datetime.datetime.strftime if isinstance(timestamp, datetime.datetime) else datetime.date.strftime 
+        parser = (
+            datetime.datetime.strftime
+            if isinstance(timestamp, datetime.datetime)
+            else datetime.date.strftime
+        )
         return parser(date_value, "%Y-%m-%d")
 
     def __str__(self) -> str:
@@ -180,6 +180,8 @@ class DayLog:
             + [str(x) for x in self.timestamps]
         )
 
+    def copy(self) -> "DayLog": 
+        return __class__(date = self.date, timestamps = self.timestamps.copy())
     def __add__(self, other: "DayLog") -> "DayLog":
         """
         Combine this :code:`DayLog` instance with another by creating a new
@@ -311,8 +313,11 @@ class Timesheet:
         data = (
             {DayLog.yyyymmdd(): DayLog()} if kwargs["data"] is None else kwargs["data"]
         )
-        data = { key : data[key] for key in sorted(data.keys(), key = lambda k: datetime.date.fromisoformat(k))}
-        #utils.validate_datestamps(data.keys())
+        data = {
+            key: data[key].copy()
+            for key in sorted(data.keys(), key=lambda k: datetime.date.fromisoformat(k))
+        }
+        # utils.validate_datestamps(data.keys())
         self.record = data
         self._storage_name = kwargs["storage_name"]
         self.creation_time = datetime.datetime.today()
@@ -325,7 +330,7 @@ class Timesheet:
         )
         # Create storage path if it does not exist already
         storage_dir = split(self._storage_path)[0]
-        if not exists(storage_dir): 
+        if not exists(storage_dir):
             makedirs(storage_dir)
         # Generate default storage name if none provided
         if (arg_name := kwargs["storage_name"]) is None:
@@ -349,27 +354,33 @@ class Timesheet:
             self.save(overwrite=overwrite)
 
     @property
-    def storage_name(self) -> str: 
+    def storage_name(self) -> str:
         return self._storage_name
 
     @storage_name.setter
-    def storage_name(self, storage_name : str) -> None: 
+    def storage_name(self, storage_name: str) -> None:
         self._storage_name = storage_name
 
     @property
-    def storage_path(self) ->  str:
+    def storage_path(self) -> str:
         return self._storage_path
 
     @storage_path.setter
-    def storage_path(self, storage_path : str) -> None:
+    def storage_path(self, storage_path: str) -> None:
+        if not (
+            os.path.exists(storage_path) and utils.path_readable(storage_path)
+        ) or utils.path_writeable(storage_path):
+            raise PermissionError(f"You lack write permission for {storage_path}")
         self._storage_path = storage_path
 
     @property
-    def output_path(self) ->  str:
+    def output_path(self) -> str:
         return self._output_path
 
     @output_path.setter
-    def output_path(self, output_path : str) -> None:
+    def output_path(self, output_path: str) -> None:
+        if not utils.path_writeable(output_path):
+            raise PermissionError(f"You lack write permission for {output_path}")
         self._output_path = output_path
 
     def __str__(self) -> str:
@@ -379,9 +390,9 @@ class Timesheet:
     def __repr__(self) -> str:
         return self.__str__()
 
-    def equals(self, other: "Timesheet") -> bool: 
+    def equals(self, other: "Timesheet") -> bool:
         """
-        Determine whether two instances contain the same data.              
+        Determine whether two instances contain the same data.
 
         :param other "Timesheet": Another :code:`Timesheet` instance.
         :rtype bool: :code:`True` if the data are identical, :code:`False` otherwise
@@ -391,7 +402,10 @@ class Timesheet:
             return False
 
         # Must use equals method instead of == because the former ignores different creation times
-        return all(self.record[datestamp].equals(other.record[datestamp]) for datestamp in own_keys)
+        return all(
+            self.record[datestamp].equals(other.record[datestamp])
+            for datestamp in own_keys
+        )
 
     def save(
         self,
@@ -412,8 +426,8 @@ class Timesheet:
         storage_name = self._storage_name if storage_name is None else storage_name
         path = self._storage_path if path is None else path
         target = dirname(path)
-        if not access(target, W_OK):
-            raise PermissionError(f"You lack write permission for directory {target}")
+        if not utils.path_readable(target):
+            raise PermissionError(f"You lack read permission for directory {target}")
         if not exists(target):
             if create_directory:
                 makedirs(target)
@@ -422,7 +436,7 @@ class Timesheet:
                     f"Cannot save: {target} does not exist, and create_directory = False"
                 )
 
-        with shelve.open(path, "c", writeback = True) as f:
+        with shelve.open(path, "c", writeback=True) as f:
             # Create default storage name if unspecified
             if storage_name is None:
                 storage_name = self._default_name(list(f.keys()))
@@ -440,7 +454,7 @@ class Timesheet:
             ):
                 return self
             f[storage_name] = self
-        
+
         return self
 
     @staticmethod
@@ -496,6 +510,7 @@ class Timesheet:
         date: Union[datetime.date, str] = None,
         timestamps: List[datetime.datetime] = None,
     ) -> "Timesheet":
+        """Concatenate additional timestamps for a given date, or create a new entry if none exists"""
         date = datetime.datetime.today() if date is None else date
         timestamps = (
             [datetime.datetime.today()]
@@ -513,6 +528,7 @@ class Timesheet:
         else:
             data.concat_timestamps(timestamps)
         self.save(overwrite=True)
+        return self
 
     def merge(
         self,
@@ -549,10 +565,12 @@ class Timesheet:
         }
 
         # Attempt DayLog merge for each shared key
-        new_data.update ( {
-            timestamp: self.record[timestamp] + (other.record[timestamp])
-            for timestamp in common_keys
-        } )
+        new_data.update(
+            {
+                timestamp: self.record[timestamp] + (other.record[timestamp])
+                for timestamp in common_keys
+            }
+        )
         self._constructor(
             data=new_data,
             storage_path=storage_path,
@@ -565,14 +583,6 @@ class Timesheet:
     def __getitem__(self, k: str) -> DayLog:
         return self.record[k]
 
-    @property
-    def output_path(self) -> str:
-        return self._output_path
-
-    @output_path.setter
-    def output_path(self, path: str) -> None:
-        self._output_path = path
-
     def __len__(self) -> int:
         return len(self.record)
 
@@ -581,7 +591,7 @@ class Timesheet:
         stem = self.__class__.__name__.lower()
         return f"{stem}{utils.next_number(stem = stem, names = names)}{extension}"
 
-    def write_json(self, path: str = None, make_directory = False) -> "Timesheet":
+    def write_json(self, path: str = None, make_directory=False) -> "Timesheet":
         """
         Write an instance's day data to JSON. This makes it possible to copy the instance by caling `Timesheet.from_json` on the path to the created JSON.
 
@@ -589,16 +599,20 @@ class Timesheet:
         :rtype None:
         """
         if path is None:
-            # If no path provided, default to {storage_name}.json, in directory of output 
+            # If no path provided, default to {storage_name}.json, in directory of output
             # path if provided, otherwise storage path (always set)
-            storage_dir = split(self._output_path if self._output_path is not None else self._storage_path)[0]
+            storage_dir = split(
+                self._output_path
+                if self._output_path is not None
+                else self._storage_path
+            )[0]
             # If authorized, create target directory if it does not exist.
             path = f"{storage_dir}/{self._storage_name}{utils.next_number(self._storage_name, listdir(storage_dir))}.json"
-            #path = (
+            # path = (
             #    utils.add_extension(os.path.self.output_path, ".json")
             #    if self.output_path is not None
             #    else self._default_name(names=listdir("."), extension=".json")
-            #)
+            # )
         else:
             storage_dir = split(path)[0]
         if not exists(storage_dir) and make_directory:

@@ -265,7 +265,7 @@ def test_simple_merge(helpers):
     new = helpers.bare_Timesheet.record
     test.merge(helpers.bare_Timesheet, save = False)
     old.update(new)
-    assert test.record == old
+    assert all({v.equals(old[k]) for k, v in test.record.items()})
 
 
 def test_intersect_merge(helpers):
@@ -329,7 +329,7 @@ def test_disjoint_merge(helpers):
     right = helpers.Timesheet(data=new, save = False)
     reference.update(new)
     left.merge(right, save = True)
-    assert all(left.record[key] == reference[key] for key in left.record.keys())
+    assert all(left.record[key].equals(reference[key]) for key in left.record.keys())
 
 
 def test_sequential_merge(helpers):
@@ -376,3 +376,10 @@ def test_default_json_path(helpers, tmp_path):
     result = helpers.Timesheet.from_json(f"{split(output_path)[0]}/{test.storage_name}1.json", save = False)
     assert test.equals(result)
 
+def test_concat_timestamps(helpers):
+    instance = helpers.Timesheet(data = helpers.daylog_data)
+    new = [datetime.time(10, 1, 1), datetime.time(12, 2, 2)]
+    target_datestamp = "2022-06-27"
+    expected = instance.record[target_datestamp].copy().concat_timestamps(new)
+    instance.concat_timestamps(date = target_datestamp, timestamps = new)
+    assert instance.record[target_datestamp].equals(expected)

@@ -2,7 +2,7 @@ import datetime
 import re
 import shelve
 import sys
-from glob import glob
+import os
 from os import getenv
 from os.path import exists
 from os.path import splitext
@@ -29,6 +29,14 @@ def json_serialize(x):
         return x.timestamps
     raise TypeError(f"Cannot serialize object of type {type(x)}")
 
+def path_checker(permissions): 
+    """Create function to check whether a user has specified permissions to use a path"""
+    def inner(path : str):
+        return os.access(path, permissions)
+    return inner
+
+path_readable = path_checker((os.R_OK))
+path_writeable = path_checker(os.W_OK | os.X_OK)
 
 def date_parser(di):
     """Parses a JSON where keys are ISO-formatted dates and values are lists of ISO-formatted times to be converted to DiffTime objects"""
