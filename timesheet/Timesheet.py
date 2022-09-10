@@ -367,9 +367,9 @@ class Timesheet:
 
     @storage_path.setter
     def storage_path(self, storage_path: str) -> None:
-        if not (
-            os.path.exists(storage_path) and utils.path_readable(storage_path)
-        ) or utils.path_writeable(storage_path):
+        if not (storage_path is None or
+            (os.path.exists(storage_path) and utils.path_readable(storage_path)
+        ) or utils.path_writeable(storage_path)):
             raise PermissionError(f"You lack write permission for {storage_path}")
         self._storage_path = storage_path
 
@@ -379,7 +379,7 @@ class Timesheet:
 
     @output_path.setter
     def output_path(self, output_path: str) -> None:
-        if not utils.path_writeable(output_path):
+        if not(output_path is None or utils.path_writeable(output_path)):
             raise PermissionError(f"You lack write permission for {output_path}")
         self._output_path = output_path
 
@@ -443,7 +443,7 @@ class Timesheet:
             # Bail out on attempt to overwrite if overwrite = False
             if (
                 not overwrite
-                and f.get(storage_name)
+                and f.get(storage_name) is not None
                 and (
                     not utils.is_interactive()
                     or input(
@@ -454,9 +454,12 @@ class Timesheet:
             ):
                 return self
             f[storage_name] = self
+            f.sync()
 
         return self
 
+    def copy(self, storage_name = None) -> "Timesheet": 
+        return __class__(data = self.record, storage_path = self.storage_path, storage_name=storage_name, output_path=self.output_path, save = False)
     @staticmethod
     def load(storage_name: str, storage_path: str = None) -> "Timesheet":
         """

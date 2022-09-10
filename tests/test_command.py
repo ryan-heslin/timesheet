@@ -148,16 +148,9 @@ def test_disjoint_merge(helpers, tmp_path):
     instance2 = Timesheet.Timesheet(data = data2,  save = True, storage_name = storage_name2, storage_path = storage_path)
         
     os.system(f"{ts} merge --timesheets {storage_name1}={storage_path} --timesheets {storage_name2}={storage_path} --storage_name {result_storage_name} --storage_path {storage_path}")
-    assert result_storage_name in helpers.Timesheet.list(storage_path)
-    os.system(f"{ts} jsonify --storage_name {result_storage_name} --storage_path {storage_path} --output_path {tmp_path}/test.json")
-    os.system(
-            f"{ts} create --json_source {output_path} --storage_name test2 --storage_path {storage_path}"
-        )
+    result = helpers.Timesheet.load(storage_name = result_storage_name, storage_path = storage_path)
 
     data1.update(data2)
-    result = helpers.Timesheet.load(
-        storage_name=result_storage_name, storage_path=storage_path
-    )
     instance1.merge(instance2, save = False)
     assert result.equals(instance1)
 

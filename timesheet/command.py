@@ -195,7 +195,6 @@ def merge(timesheets : List[str] = [],
         storage_name : str =None,
         verbose : bool =False,
 ):
-    breakpoint()
     loaded_timesheets = [ Timesheet.Timesheet.load(*string.split("=")) for string in timesheets]
     # Merge each timesheet in sequence with original
     # Only need to save final version, to avoid side effects
@@ -203,14 +202,14 @@ def merge(timesheets : List[str] = [],
         return None
     while len(loaded_timesheets) > 1:
         loaded_timesheets[0].merge(loaded_timesheets.pop(1), save = False)
-    combined = loaded_timesheets.pop()
+    combined = loaded_timesheets.pop().copy()
 
     # Set output names as requested
     combined.storage_name = storage_name
     combined.storage_path = storage_path
     combined.output_path = output_path
 
-    # Save output
+    # Save output - this does work when run interactively
     combined.save(create_directory = True, overwrite=True)
     # TODO fix bug of saves to new names not persisting
-    return 1
+    return 0
