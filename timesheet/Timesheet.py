@@ -664,18 +664,21 @@ class Timesheet:
         end_date: Union[datetime.date, str] = datetime.date.max,
         aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
     ) -> None:
-        # TODO: allow aggregation of total hours worked by week, in addition to targeting just one week
         # Add explicit 0s for unrecorded dates bettwen start and end
         data = self.summarize(
             start_date=start_date, end_date=end_date, aggregate=aggregate
         )
+        # Split each datestamp into components
+        breakdowns = {"date" : list(data.keys()),**aggregate.string_format.decompose_dict(data.keys()), "hours" : list(data.values())} 
 
-        # Write CSV
         # Write dict to csv with columns year, month, date, hours
         with open(path, "w") as f:
             writer = csv.writer(f)
-            for k, v in data.items():
-                writer.writerow([k, v])
+            writer.writerow(breakdowns.keys())
+            # Transform into list of rows
+            breakdowns = zip(*breakdowns.values())
+            for row in breakdowns:
+                writer.writerow(row)
 
     @classmethod
     def from_json(

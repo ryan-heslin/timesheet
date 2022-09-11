@@ -1,12 +1,12 @@
 import datetime
-from typing import Callable
+from typing import Callable, List, Dict, Iterable, Tuple, Union
 
 from timesheet import constants
 
 
 class TimeAggregate:
     def __init__(
-            self, decrement : Callable, increment: Callable,  floor: Callable, string_format: str, name: str
+            self, decrement : Callable, increment: Callable,  floor: Callable, string_format: "DateFormat", name: str
     ):
         self.name = name
         self.string_format = string_format
@@ -14,6 +14,25 @@ class TimeAggregate:
         self.increment = increment
         self.floor = floor
 
+class DateFormat():
+
+    def __init__(self, format : str, components : Tuple[str, ...], separator : Union[str, None] = "-") ->  None:
+        if not (separator is None or separator in format): 
+            raise ValueError(f"Separator {separator} not used in format {format}")
+        self.format = format 
+        self.separator = separator
+        self.components = components
+
+    def decompose(self, datestamp : str) -> List[str]: 
+        """Break date format string into its component pieces"""
+        return  [part.lstrip("0") for part in datestamp.split(self.separator)]
+
+    def decompose_dict(self, datestamps : Iterable[str]) -> Dict[str, List[str]]: 
+        """Turn a list of datestamps in format into dict of component lists"""
+        return dict(zip(self.components, zip(*[ self.decompose(datestamp) for datestamp in datestamps ])))
+
+
+         
 
 # Days 
 
@@ -74,12 +93,11 @@ def decrement_year(date : datetime.date):
 
 # Representation strftime formats for aggregates
 
-day_format = "%Y-%m-%d"
+day_format = DateFormat(format = "%Y-%m-%d", components = ( "year", "month", "day" ))
 # Year-week: week 0 for days in January before first Monday
-week_format = "%Y-%W"
-month_format = "%Y-%-m"
-year_format = "%Y"
-
+week_format = DateFormat(format = "%Y-%W", components = ( "year", "week" ))
+month_format = DateFormat(format = "%Y-%-m", components = ( "year", "month" ))
+year_format = DateFormat(format = "%Y", components=( "year", ), separator = None)
 # Built-in aggregation time spans
 Day = TimeAggregate(decrement_day, increment_day , floor_day, day_format, "day")
 Week = TimeAggregate(decrement_week, increment_week, floor_week, week_format, "week")

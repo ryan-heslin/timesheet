@@ -107,7 +107,7 @@ def test_summarize_week(helpers):
         {
             datetime.date.strftime(
                 datetime.date.fromisoformat(min(helpers.expected_day_times.keys())),
-                TimeAggregate.Week.string_format,
+                TimeAggregate.Week.string_format.format,
             ): sum(helpers.expected_day_times.values())
         },
     )
@@ -119,7 +119,7 @@ def test_summarize_month(helpers):
     for datestamp in helpers.expected_day_times.keys():
         month = datetime.date.strftime(
             datetime.date.fromisoformat(datestamp),
-            TimeAggregate.Month.string_format,
+            TimeAggregate.Month.string_format.format,
         )
         expected[month] = expected.get(month, 0) + helpers.expected_day_times[datestamp]
     helpers.test_summarize(
@@ -159,10 +159,10 @@ def test_write_csv(helpers, tmp_path):
     instance.write_csv_summary(path=output_path)
     with open(output_path) as f:
         reader = csv.reader(f)
-        read_data = {date: float(hours) for date, hours in reader}
+        read_data = dict(zip(next(iter(reader)), zip(*reader)) )
         assert all(
-            read_data[date] == helpers.expected_day_times[date]
-            for date in read_data.keys()
+            float(read_data["hours"][i]) == helpers.expected_day_times[read_data["date"][i]]
+            for i in range(len(read_data["date"]))
         )
 
 
@@ -173,9 +173,12 @@ def test_write_empty_csv(helpers, tmp_path):
     instance.write_csv_summary(path=output_path)
     with open(output_path) as f:
         reader = csv.reader(f)
-        read_data = {date: float(hours) for date, hours in reader}
+        read_data = dict(zip(next(iter(reader)), zip(*reader)) )
         comparison = instance.summarize(start_date=min(instance.record.keys()))
-        assert all(read_data[date] == comparison[date] for date in read_data.keys())
+        assert all(
+                    float(read_data["hours"][i]) == comparison[read_data["date"][i]]
+                    for i in range(len(read_data["date"]))
+                )
 
 
 # TODO do these with single function
