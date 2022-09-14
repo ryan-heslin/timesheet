@@ -9,7 +9,11 @@ from timesheet import TimeAggregate
 
 # Click class for shared arguments
 # https://stackoverflow.com/questions/40182157/shared-options-and-flags-between-commands
+import enum
 
+class Output(enum.Enum):
+    CSV = "csv"
+    JSON = "json"
 
 @click.group()
 def timesheet():
@@ -46,14 +50,14 @@ locate_timesheet = factory.create()
 
 # )
 @click.option(
-    "--output_path", help="JSON path attribute of created instance", default=None
+    "--data_path", help="JSON path attribute of created instance", default=None
 )
 @click.option("--json_source", help="Path to JSON file from which to load data")
 @click.option("--verbose", default=False, help=constants.HELP_MAP["verbose"])
 @timesheet.command(name="create", cls=locate_timesheet)
 def create(
     json_source=None,
-    output_path=None,
+    data_path=None,
     storage_path=utils.storage_path(),
     storage_name=None,
     verbose=False,
@@ -62,15 +66,15 @@ def create(
         Timesheet.Timesheet(
             storage_path=storage_path,
             storage_name=storage_name,
-            output_path=output_path,
+            data_path=data_path,
             save=True,
         )
     else:
         Timesheet.Timesheet.from_json(
-            data_path=json_source,
+            json_path=json_source,
             storage_path=storage_path,
             storage_name=storage_name,
-            output_path=output_path,
+            data_path=data_path,
             save=True,
         )
     # TODO add some way to overwrite
@@ -116,15 +120,15 @@ def append(
 @click.option("--aggregate", help="Level of aggregation to choose (day, week, month, or year)", default="day")
 @click.option("--start_date", help="Date on which to start aggregation (inclusive)", default=datetime.date.min)
 @click.option("--end_date", help="Date on which to end aggregation (exclusive)", default=datetime.date.max)
-@click.option("--output_path", help="Path to output JSON", default=None)
+@click.option("--data_path", help="Path to output JSON", default=None)
 @timesheet.command(name="summarize", cls=locate_timesheet)
 # @click.pass_context
 # TODO check if these inherit defaults
 def summarize(
-    storage_name: str, storage_path: str,  output_path: str = None, 
+    storage_name: str, storage_path: str,  data_path: str = None, 
     start_date : Union[str, datetime.date] = datetime.date.min, 
     end_date : Union[str, datetime.date] = datetime.date.max, 
-    aggregate : str = "day"
+    aggregate : str = "day", 
 ):
     # @storage_name.forward(locate_timesheet)
     instance = Timesheet.Timesheet.load(
@@ -139,10 +143,10 @@ def summarize(
         raise e
 
 
-    if output_path is None:
+    if data_path is None:
         instance.summarize(start_date = start_date, end_date=end_date, aggregate = aggregate_value)
     else:
-        instance.write_json_summary(output_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate_value)
+        instance.write_json_summary(data_path=data_path, start_date = start_date, end_date=end_date, aggregate = aggregate_value)
 
 
 #@timesheet.command()
@@ -152,11 +156,11 @@ def summarize(
 #    help=constants.HELP_MAP["storage_path"],
 #    default=utils.storage_path(),
 #)
-@click.option("--output_path", help="Path to JSON output", default=None)
+@click.option("--data_path", help="Path to JSON output", default=None)
 @timesheet.command(name="jsonify", cls=locate_timesheet)
-def jsonify(storage_name, storage_path=utils.storage_path(), output_path=None):
+def jsonify(storage_name, storage_path=utils.storage_path(), data_path=None):
     instance = Timesheet.Timesheet.load(storage_name, storage_path)
-    instance.write_json(path=output_path)
+    instance.write_json(path=data_path)
     return 0
 
 
@@ -187,10 +191,10 @@ def list(storage_path : str =utils.storage_path()) -> dict:
         help = "TODO", default = [])
 @click.option("--storage_path", help = "help" , default = utils.storage_path())
 @click.option("--storage_name", help = "help" , default = None)
-@click.option("--output_path", help = "help" , default = None)
+@click.option("--data_path", help = "help" , default = None)
 @timesheet.command(name = "merge")
 def merge(timesheets : List[str] = [], 
-        output_path : str =None,
+        data_path : str =None,
         storage_path : str =utils.storage_path(),
         storage_name : str =None,
         verbose : bool =False,
@@ -207,7 +211,7 @@ def merge(timesheets : List[str] = [],
     # Set output names as requested
     combined.storage_name = storage_name
     combined.storage_path = storage_path
-    combined.output_path = output_path
+    combined.data_path = data_path
 
     # Save output - this does work when run interactively
     combined.save(create_directory = True, overwrite=True)

@@ -28,13 +28,13 @@ def test_create_Timesheet(helpers, tmp_path):
 
 
 def test_jsonify(helpers, tmp_path):
-    path, output_path = helpers.make_paths(tmp_path, "test", "test.json")
+    path, data_path = helpers.make_paths(tmp_path, "test", "test.json")
     os.system(
-        f"{ts} create --output_path {output_path} --storage_path {path} --storage_name test"
+        f"{ts} create --data_path {data_path} --storage_path {path} --storage_name test"
     )
-    os.system(f"{ts} jsonify --storage_name test --output_path {output_path} --storage_path {path}")
+    os.system(f"{ts} jsonify --storage_name test --data_path {data_path} --storage_path {path}")
     os.system(
-        f"{ts} create --json_source {output_path}  --storage_name test2 --storage_path {path}2"
+        f"{ts} create --json_source {data_path}  --storage_name test2 --storage_path {path}2"
     )
     first = helpers.Timesheet.load(storage_name="test", storage_path=path).record
     second = helpers.Timesheet.load(
@@ -90,7 +90,7 @@ def test_write_json_summary(helpers, tmp_path):
     storage_path = f"{tmp_path}/timesheet"
     storage_name = "test"
     test = helpers.Timesheet(helpers.daylog_data, storage_path = storage_path, storage_name = storage_name)
-    os.system(f"{ts} summarize --storage_path {storage_path} --storage_name {storage_name} --output_path {tmp_path}/test.json ")
+    os.system(f"{ts} summarize --storage_path {storage_path} --storage_name {storage_name} --data_path {tmp_path}/test.json ")
     with open( f"{tmp_path}/test.json" ) as f: 
         result = json.load(f)
 
@@ -125,7 +125,7 @@ def test_single_merge(helpers, tmp_path):
     instance = Timesheet.Timesheet(data = helpers.daylog_data, save = True, storage_name = storage_name, storage_path = storage_path)
     comparison = instance.record
     os.system(f"{ts} merge f{storage_name}=f{storage_path} --storage_path = {storage_path} --storage_name {storage_name}")
-    os.system(f"{ts} jsonify --storage_name {storage_name} --storage_path {storage_path} --output_path {tmp_path}/test.json")
+    os.system(f"{ts} jsonify --storage_name {storage_name} --storage_path {storage_path} --data_path {tmp_path}/test.json")
     os.system(
             f"{ts} create --json_source {tmp_path}/test.json --storage_name test2 --storage_path {storage_path}"
         )
@@ -139,7 +139,7 @@ def test_disjoint_merge(helpers, tmp_path):
     storage_path = f"{tmp_path}/test"
     storage_name2 = "test2"
     result_storage_name = "result"
-    output_path = f"{tmp_path}/test.json"
+    data_path = f"{tmp_path}/test.json"
 
     data1 = deepcopy(helpers.daylog_data)
     data2 = helpers.alternate_daylog_data(month = 1)

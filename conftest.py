@@ -186,7 +186,7 @@ class Helpers:
         command_stem = f"{__class__.ts} summarize --storage_name {storage_name} --storage_path {storage_path}"
         # Save summary for each day of week
         for i, date in enumerate(__class__.make_dates()):  
-            command = f"{command_stem} --date '{date}' --output_path '{test_paths[i]}'"
+            command = f"{command_stem} --date '{date}' --data_path '{test_paths[i]}'"
             os.system(command)
             with open(test_paths[i]) as f:
                 assert json.load(f) == __class__.expected_day_times

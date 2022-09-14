@@ -285,7 +285,7 @@ class Timesheet:
         storage_path: str = None,
         storage_name: str = None,
         save: bool = True,
-        output_path: str = None,
+        data_path: str = None,
     ) -> None:
         """
         Initialize a :code:`Timesheet` instance.
@@ -294,7 +294,7 @@ class Timesheet:
         :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
-        :param output_path str:
+        :param data_path str:
         :rtype None:
         """
 
@@ -304,7 +304,7 @@ class Timesheet:
             storage_path=storage_path,
             storage_name=storage_name,
             save=save,
-            output_path=output_path,
+            data_path=data_path,
         )
 
     def _constructor(self, **kwargs) -> None:
@@ -322,7 +322,7 @@ class Timesheet:
         self._storage_name = kwargs["storage_name"]
         self.creation_time = datetime.datetime.today()
         self.last_save = None
-        self._output_path = kwargs["output_path"]
+        self._data_path = kwargs["data_path"]
         self._storage_path = (
             kwargs["storage_path"]
             if kwargs["storage_path"] is not None
@@ -374,14 +374,14 @@ class Timesheet:
         self._storage_path = storage_path
 
     @property
-    def output_path(self) -> str:
-        return self._output_path
+    def data_path(self) -> str:
+        return self._data_path
 
-    @output_path.setter
-    def output_path(self, output_path: str) -> None:
-        if not(output_path is None or utils.path_writeable(output_path)):
-            raise PermissionError(f"You lack write permission for {output_path}")
-        self._output_path = output_path
+    @data_path.setter
+    def data_path(self, data_path: str) -> None:
+        if not(data_path is None or utils.path_writeable(data_path)):
+            raise PermissionError(f"You lack write permission for {data_path}")
+        self._data_path = data_path
 
     def __str__(self) -> str:
         return f"""A Timesheet object created {self.creation_time}
@@ -459,7 +459,7 @@ class Timesheet:
         return self
 
     def copy(self, storage_name = None) -> "Timesheet": 
-        return __class__(data = self.record, storage_path = self.storage_path, storage_name=storage_name, output_path=self.output_path, save = False)
+        return __class__(data = self.record, storage_path = self.storage_path, storage_name=storage_name, data_path=self.data_path, save = False)
     @staticmethod
     def load(storage_name: str, storage_path: str = None) -> "Timesheet":
         """
@@ -539,7 +539,7 @@ class Timesheet:
         storage_path: str = None,
         storage_name: str = None,
         save: bool = True,
-        output_path: str = None,
+        data_path: str = None,
     ) -> "Timesheet":
 
         """
@@ -549,7 +549,7 @@ class Timesheet:
         :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
-        :param output_path str:
+        :param data_path str:
         :rtype None:
         """
         # Find common keys
@@ -579,7 +579,7 @@ class Timesheet:
             storage_path=storage_path,
             storage_name=storage_name,
             save=save,
-            output_path=output_path,
+            data_path=data_path,
         )
         return self
 
@@ -598,22 +598,22 @@ class Timesheet:
         """
         Write an instance's day data to JSON. This makes it possible to copy the instance by caling `Timesheet.from_json` on the path to the created JSON.
 
-        :param path str: Optional path to output JSON. Defaults to the instance's :code:`output_path` attribute, or a generated unique name if it is :code:`None`.
+        :param path str: Optional path to output JSON. Defaults to the instance's :code:`data_path` attribute, or a generated unique name if it is :code:`None`.
         :rtype None:
         """
         if path is None:
             # If no path provided, default to {storage_name}.json, in directory of output
             # path if provided, otherwise storage path (always set)
             storage_dir = split(
-                self._output_path
-                if self._output_path is not None
+                self._data_path
+                if self._data_path is not None
                 else self._storage_path
             )[0]
             # If authorized, create target directory if it does not exist.
             path = f"{storage_dir}/{self._storage_name}{utils.next_number(self._storage_name, listdir(storage_dir))}.json"
             # path = (
-            #    utils.add_extension(os.path.self.output_path, ".json")
-            #    if self.output_path is not None
+            #    utils.add_extension(os.path.self.data_path, ".json")
+            #    if self.data_path is not None
             #    else self._default_name(names=listdir("."), extension=".json")
             # )
         else:
@@ -645,7 +645,7 @@ class Timesheet:
 
     def write_json_summary(
         self,
-        output_path: str,
+        data_path: str,
         start_date: Union[datetime.date, str] = datetime.date.min,
         end_date: Union[datetime.date, str] = datetime.date.max,
         aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
@@ -654,7 +654,7 @@ class Timesheet:
         summary = self.summarize(
             start_date=start_date, end_date=end_date, aggregate=aggregate
         )
-        with open(output_path, "w") as f:
+        with open(data_path, "w") as f:
             json.dump(summary, f)
 
     def write_csv_summary(
@@ -683,11 +683,11 @@ class Timesheet:
     @classmethod
     def from_json(
         cls,
-        data_path: str,
+        json_path: str,
         storage_path: str = None,
         storage_name: str = None,
         save: bool = True,
-        output_path: str = None,
+        data_path: str = None,
     ) -> "Timesheet":
         """
         Create a :code:`Timesheet` instance from a path to a JSON representation of an instance's data.
@@ -697,10 +697,10 @@ class Timesheet:
         :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
-        :param output_path str: [TODO:description]
+        :param data_path str: [TODO:description]
         :rtype "Timesheet": Created :code:`Timesheet instance`
         """
-        with open(data_path) as f:
+        with open(json_path) as f:
             data = json.load(f, object_hook=utils.date_parser)
         instance = cls.__new__(cls)
         instance._constructor(
@@ -708,6 +708,6 @@ class Timesheet:
             storage_path=storage_path,
             storage_name=storage_name,
             save=save,
-            output_path=output_path,
+            data_path=data_path,
         )
         return instance

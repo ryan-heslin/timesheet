@@ -12,6 +12,9 @@ from os.path import expanduser
 from typing import Any
 from typing import Iterable
 from typing import Union
+from typing import Callable
+from typing import List 
+from typing import Dict
 
 import click
 
@@ -21,15 +24,15 @@ from timesheet import Timesheet
 
 
 # From https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
-def json_serialize(x):
-
+def json_serialize(x : Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]):
+    """Convert datetime objects to ISO format suitable for JSON serialization"""
     if isinstance(x, (datetime.datetime, datetime.time)):
         return x.isoformat()
     elif isinstance(x, Timesheet.DayLog):
         return x.timestamps
     raise TypeError(f"Cannot serialize object of type {type(x)}")
 
-def path_checker(permissions): 
+def path_checker(permissions : int) -> Callable: 
     """Create function to check whether a user has specified permissions to use a path"""
     def inner(path : str):
         return os.access(path, permissions)
@@ -38,7 +41,7 @@ def path_checker(permissions):
 path_readable = path_checker((os.R_OK))
 path_writeable = path_checker(os.W_OK | os.X_OK)
 
-def date_parser(di):
+def date_parser(di : Dict[str, str]) -> Dict[str, "Timesheet.DayLog"]:
     """Parses a JSON where keys are ISO-formatted dates and values are lists of ISO-formatted times to be converted to DiffTime objects"""
     out = {}
     for k in di:
@@ -49,6 +52,7 @@ def date_parser(di):
 
 
 def validate_datestamps(datestamps: Iterable[str]) -> bool:
+    """Confirms whether all datestamps in an iterable parse in ISO format"""
     try:
         return all(
             datetime.date.fromisoformat(timestamp) or True for timestamp in datestamps
@@ -56,11 +60,11 @@ def validate_datestamps(datestamps: Iterable[str]) -> bool:
     except ValueError as e:
         raise e
 
-def storage_path():
+def storage_path() -> str:
      return getenv("TIMESHEET_DIR", expanduser("~/.timesheet/timesheets"))
 
 
-def next_number(stem, names):
+def next_number(stem : str, names : List[str]) -> int:
     if names == []:
         return 1
     pattern = stem + r"(\d+)\.?.*$"
@@ -75,8 +79,9 @@ def next_number(stem, names):
 
 # storage_name ignored if None
 def use_shelve_file(
-    func, storage_name: str = None, path: str = None, confirm_prompt: str = None
+        func : Callable, storage_name: str = None, path: str = None, confirm_prompt: str = None
 ) -> Any:
+    """Apply an arbitrary function of one argument to the object bound to a name in a given shelve file"""
     path = f"{storage_path()}" if path is None else path
     if not exists(path):
         raise FileNotFoundError(f"{path!r} does not exist")
@@ -95,7 +100,8 @@ def use_shelve_file(
 
 # https://stackoverflow.com/questions/2024566/how-to-access-outer-class-from-an-inner-class
 class StandardCommandFactory:
-    def configure(self, commands=None) -> None:
+    """Creates a Click command that inherits arguments from another command"""
+    def configure(self, commands : List =None) -> None:
         commands = [] if commands is None else commands
         self.commands = commands
         # self.update_commands(commands)
@@ -110,7 +116,7 @@ class StandardCommandFactory:
     class StandardCommand(click.Command):
         included_params = []
 
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.params.extend(__class__.included_params)
 
@@ -120,7 +126,7 @@ def sum_DayLogs(
     start_date: Union[datetime.date, str] = datetime.date.min,
     end_date: Union[datetime.date, str] = datetime.date.max,
     aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
-) -> dict:
+) -> Dict[str, float]:
     start_date = handle_date_arg(start_date)
     end_date = handle_date_arg(end_date)
     out = {}
@@ -199,7 +205,8 @@ def sum_DayLogs(
 
 
 # Credit https://stackoverflow.com/questions/2356399/tell-if-python-is-in-interactive-mode
-def is_interactive():
+def is_interactive() -> bool:
+    """Returns whether Python is running in interactive mode"""
     return hasattr(sys, "ps1")
 
 
@@ -217,6 +224,7 @@ def handle_date_arg(
 
 # Replace (or set) a path's extension
 def add_extension(path : str, extension : str) -> str: 
+    """Replaces or sets a path's extension"""
     stem, basename = split(path)
     return join(stem, splitext(basename)[0]) + extension
 

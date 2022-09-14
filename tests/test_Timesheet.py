@@ -50,18 +50,18 @@ def test_write_json(helpers, tmp_path):
 def test_from_json(helpers, tmp_path):
     path = "test.json"
     original = helpers.write_json(path=f"{tmp_path}/{path}")
-    new = helpers.Timesheet.from_json(data_path=f"{tmp_path}/{path}", save = False)
+    new = helpers.Timesheet.from_json(json_path=f"{tmp_path}/{path}", save = False)
     assert original[test_date].timestamps == new[test_date].timestamps
 
 
-def test_auto_output_path(helpers, tmp_path):
+def test_auto_data_path(helpers, tmp_path):
          
-    """Default output path is correctly formed if `output_path` is not specified"""
+    """Default output path is correctly formed if `data_path` is not specified"""
     system(f"touch {tmp_path}/timesheet1.json {tmp_path}/timesheet2.json")
     original = helpers.full_Timesheet(save=False)
     original.write_json(path=None)
     new = helpers.Timesheet.from_json(
-        data_path=f"{split(utils.storage_path())[0]}/{original.storage_name}1.json", save=False
+        json_path=f"{split(utils.storage_path())[0]}/{original.storage_name}1.json", save=False
     )
     assert original.equals(new)
 
@@ -137,27 +137,27 @@ def test_summarize_year(helpers):
 def test_write_summary(helpers, tmp_path):
     """Check that `write_json_summary` correctly  writes JSON files of the results"""
     test = helpers.Timesheet(data=helpers.daylog_data, save = False)
-    output_path = f"{tmp_path}/test.json"
+    data_path = f"{tmp_path}/test.json"
     # Ensure date in week
     latest_date = max(helpers.expected_day_times.keys())
     test.write_json_summary(
         start_date=min(helpers.expected_day_times.keys()),
-        output_path=output_path,
+        data_path=data_path,
         end_date=latest_date,
     )
-    with open(output_path) as f:
+    with open(data_path) as f:
         result = json.load(f)
         assert all(helpers.dict_subset(result, helpers.expected_day_times))
 
 
 def test_write_csv(helpers, tmp_path):
     """Test that an instance with data correctly writes to csv"""
-    output_path = f"{tmp_path}/test.csv"
+    data_path = f"{tmp_path}/test.csv"
     instance = helpers.Timesheet(
         data=helpers.daylog_data, save=True, storage_path=f"{tmp_path}/timesheet"
     )
-    instance.write_csv_summary(path=output_path)
-    with open(output_path) as f:
+    instance.write_csv_summary(path=data_path)
+    with open(data_path) as f:
         reader = csv.reader(f)
         read_data = dict(zip(next(iter(reader)), zip(*reader)) )
         assert all(
@@ -168,10 +168,10 @@ def test_write_csv(helpers, tmp_path):
 
 def test_write_empty_csv(helpers, tmp_path):
     """Test that an instance with no recorded hours correctly writes to csv"""
-    output_path = f"{tmp_path}/test.csv"
+    data_path = f"{tmp_path}/test.csv"
     instance = helpers.bare_Timesheet
-    instance.write_csv_summary(path=output_path)
-    with open(output_path) as f:
+    instance.write_csv_summary(path=data_path)
+    with open(data_path) as f:
         reader = csv.reader(f)
         read_data = dict(zip(next(iter(reader)), zip(*reader)) )
         comparison = instance.summarize(start_date=min(instance.record.keys()))
@@ -372,11 +372,11 @@ def test_equals_different(helpers):
     assert not helpers.full_Timesheet(save = False).equals(helpers.bare_Timesheet)
 
 def test_default_json_path(helpers, tmp_path): 
-    """Default path is correctly formed it `output_path` is specified"""
-    output_path = f"{tmp_path}/test"
-    test = helpers.full_Timesheet(output_path = output_path, save = False)
+    """Default path is correctly formed it `data_path` is specified"""
+    data_path = f"{tmp_path}/test"
+    test = helpers.full_Timesheet(data_path = data_path, save = False)
     test.write_json()
-    result = helpers.Timesheet.from_json(f"{split(output_path)[0]}/{test.storage_name}1.json", save = False)
+    result = helpers.Timesheet.from_json(f"{split(data_path)[0]}/{test.storage_name}1.json", save = False)
     assert test.equals(result)
 
 def test_concat_timestamps(helpers):
