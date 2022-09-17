@@ -1,4 +1,5 @@
 import json
+import csv
 import os
 from os.path import exists
 from copy import deepcopy
@@ -61,6 +62,16 @@ def test_list(helpers, tmp_path):
         os.system(f"{ts} create --storage_path {path} --storage_name {name}")
     assert { x.group(0) for x in re.finditer(r"test\d",helpers.capture_stdout(f"{ts} list --storage_path {path}")) } == storage_names
 
+def test_append_empty(helpers, tmp_path): 
+    """Appending the empty list is a no-op"""
+    path = helpers.test_path(tmp_path, "test")
+    instance = helpers.full_Timesheet(storage_path = path, storage_name = "timesheet1")
+    date = next(iter(instance.record.keys()))
+    old = instance[date].timestamps.copy()
+    os.system(f"{ts} append  --storage_name timesheet1 --date {date} --storage_path {path}")
+    os.system(f"{ts} append  --storage_name timesheet1 --date {date} --storage_path {path}")
+    assert instance[date].timestamps == old
+
 def test_append_fresh_date(helpers, tmp_path):
     timestamps = helpers.timestamps
     path = helpers.test_path(tmp_path, "test")
@@ -90,12 +101,27 @@ def test_write_json_summary(helpers, tmp_path):
     storage_path = f"{tmp_path}/timesheet"
     storage_name = "test"
     test = helpers.Timesheet(helpers.daylog_data, storage_path = storage_path, storage_name = storage_name)
-    os.system(f"{ts} summarize --storage_path {storage_path} --storage_name {storage_name} --data_path {tmp_path}/test.json ")
+    os.system(f"{ts} summarize --storage_path {storage_path} --storage_name {storage_name} --output_path {tmp_path}/test.json ")
     with open( f"{tmp_path}/test.json" ) as f: 
         result = json.load(f)
 
     assert all(helpers.dict_subset(result, helpers.expected_day_times))
-    
+   
+def test_write_csv_summary(helpers, tmp_path):
+    storage_path = f"{tmp_path}/timesheet"
+    storage_name = "test"
+    output_path = f"{tmp_path}/test1.csv"
+    compare_path = f"{tmp_path}/test2.csv"
+    test = helpers.Timesheet(helpers.daylog_data, storage_path = storage_path, storage_name = storage_name)
+    os.system(f"{ts} summarize --storage_path {storage_path} --storage_name {storage_name} --output_path {output_path}")
+    test.write_csv_summary(output_path = compare_path)
+    with open(output_path) as f:
+        reader = csv.reader(f)
+        first_data = dict(zip(next(iter(reader)), zip(*reader)) )
+    with open(compare_path) as f: 
+        reader = csv.reader(f)
+        second_data = dict(zip(next(iter(reader)), zip(*reader)) )
+    assert first_data == second_data
 
 def test_delete_no_confirm(helpers, tmp_path):
     """Test if deletion fails if confirmation not specified"""

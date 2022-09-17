@@ -7,6 +7,8 @@ from timesheet import Timesheet
 from timesheet import utils
 from timesheet import TimeAggregate
 
+from os.path import splitext
+
 # Click class for shared arguments
 # https://stackoverflow.com/questions/40182157/shared-options-and-flags-between-commands
 import enum
@@ -104,7 +106,7 @@ def append(
 ):
     date = datetime.date.today() if date is None else date
     if timestamps == []:
-        parsed = None
+        parsed = []
     else:
         parsed = [datetime.time.fromisoformat(x) for x in timestamps]
     instance = Timesheet.Timesheet.load(
@@ -115,26 +117,38 @@ def append(
         click.echo(f"Added {timestamps!r} to Timesheet {storage_name!r} ")
     return 0
 
-
-
-@click.option("--aggregate", help="Level of aggregation to choose (day, week, month, or year)", default="day")
-@click.option("--start_date", help="Date on which to start aggregation (inclusive)", default=datetime.date.min)
-@click.option("--end_date", help="Date on which to end aggregation (exclusive)", default=datetime.date.max)
-@click.option("--data_path", help="Path to output JSON", default=None)
+@click.option("--aggregate", help=constants.HELP_MAP["aggregate"],  default="day")
+@click.option("--start_date", help=constants.HELP_MAP["start_date"], default=datetime.date.min)
+@click.option("--end_date", help=constants.HELP_MAP["end_date"], default=datetime.date.max)
+@click.option("--output_path", help=constants.HELP_MAP["output_path"], default=None)
+@click.option("--output_type", help = constants.HELP_MAP["output_type"], type = str, default = None)
 @timesheet.command(name="summarize", cls=locate_timesheet)
 # @click.pass_context
 # TODO check if these inherit defaults
 def summarize(
-    storage_name: str, storage_path: str,  data_path: str = None, 
+    storage_name: str, storage_path: str,  output_path: str = None, 
     start_date : Union[str, datetime.date] = datetime.date.min, 
     end_date : Union[str, datetime.date] = datetime.date.max, 
     aggregate : str = "day", 
+    output_type = None
 ):
     # @storage_name.forward(locate_timesheet)
     instance = Timesheet.Timesheet.load(
             storage_name=storage_name, storage_path=storage_path
         )
-   
+    if output_path is None: 
+        if instance.output_path is None:
+            raise ValueError("Must specify an output path if instance has no default")
+        output_path = instance.output_path
+
+    
+    if output_type is None: 
+        output_type = splitext(output_path)[-1]
+    try: 
+        output_type = Output[output_type.lstrip(".").upper()]
+    except KeyError:
+        output_type = Output.JSON
+
     try:
         # Get appropriate aggregate object
         aggregate_value : TimeAggregate.TimeAggregate = TimeAggregate.__dict__[aggregate.title() ]
@@ -142,11 +156,11 @@ def summarize(
         click.echo(f"Invalid aggregate {aggregate}; must choose one of 'day', 'week', 'month', or 'year'")
         raise e
 
-
-    if data_path is None:
-        instance.summarize(start_date = start_date, end_date=end_date, aggregate = aggregate_value)
-    else:
-        instance.write_json_summary(data_path=data_path, start_date = start_date, end_date=end_date, aggregate = aggregate_value)
+    if output_type == Output.JSON: 
+        instance.write_json_summary(output_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate_value)
+    else: 
+        instance.write_csv_summary(output_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate_value)
+    return 0
 
 
 #@timesheet.command()
@@ -186,12 +200,12 @@ def list(storage_path : str =utils.storage_path()) -> dict:
         click.echo(v)
     return f
 
-# https://click.palletsprojects.com/en/5.x/arguments/# Recommends "graceful no-op" if varaidic arg is empty, so `tiemsheets` is optional despite conceptually being mandatory
+# https://click.palletsprojects.com/en/5.x/arguments/# Recommends "graceful no-op" if varaidic arg is empty, so `timesheets` is optional despite conceptually being mandatory
 @click.option("--timesheets", multiple = True, 
         help = "TODO", default = [])
-@click.option("--storage_path", help = "help" , default = utils.storage_path())
-@click.option("--storage_name", help = "help" , default = None)
-@click.option("--data_path", help = "help" , default = None)
+@click.option("--storage_path", help = f"{constants.HELP_MAP['storage_path']} (assigned to output object)" , default = utils.storage_path())
+@click.option("--storage_name", help = f"{constants.HELP_MAP['storage_name']} (assigned to output object)", default = None)
+@click.option("--data_path", help = f"{constants.HELP_MAP['data_path']} (assigned to output object)", default = None)
 @timesheet.command(name = "merge")
 def merge(timesheets : List[str] = [], 
         data_path : str =None,
@@ -204,6 +218,7 @@ def merge(timesheets : List[str] = [],
     # Only need to save final version, to avoid side effects
     if loaded_timesheets == []:
         return None
+    n_timesheets = len(loaded_timesheets)
     while len(loaded_timesheets) > 1:
         loaded_timesheets[0].merge(loaded_timesheets.pop(1), save = False)
     combined = loaded_timesheets.pop().copy()
@@ -215,5 +230,7 @@ def merge(timesheets : List[str] = [],
 
     # Save output - this does work when run interactively
     combined.save(create_directory = True, overwrite=True)
-    # TODO fix bug of saves to new names not persisting
+    if verbose: 
+        click.echo(f"Merged {n_timesheets}(s) into  {combined.storage_name} at {combined.storage_path}")
+    
     return 0

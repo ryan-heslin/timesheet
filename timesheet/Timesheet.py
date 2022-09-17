@@ -14,6 +14,7 @@ from typing import Dict
 from typing import List
 from typing import TypeVar
 from typing import Union
+from typing import Tuple
 
 from timesheet import constants
 from timesheet import TimeAggregate
@@ -181,7 +182,9 @@ class DayLog:
         )
 
     def copy(self) -> "DayLog": 
+        """Create a copy with identical data"""
         return __class__(date = self.date, timestamps = self.timestamps.copy())
+        
     def __add__(self, other: "DayLog") -> "DayLog":
         """
         Combine this :code:`DayLog` instance with another by creating a new
@@ -286,6 +289,7 @@ class Timesheet:
         storage_name: str = None,
         save: bool = True,
         data_path: str = None,
+        output_path = None
     ) -> None:
         """
         Initialize a :code:`Timesheet` instance.
@@ -305,6 +309,7 @@ class Timesheet:
             storage_name=storage_name,
             save=save,
             data_path=data_path,
+            output_path = output_path
         )
 
     def _constructor(self, **kwargs) -> None:
@@ -323,6 +328,7 @@ class Timesheet:
         self.creation_time = datetime.datetime.today()
         self.last_save = None
         self._data_path = kwargs["data_path"]
+        self._output_path = kwargs["output_path"]
         self._storage_path = (
             kwargs["storage_path"]
             if kwargs["storage_path"] is not None
@@ -540,6 +546,7 @@ class Timesheet:
         storage_name: str = None,
         save: bool = True,
         data_path: str = None,
+        output_path : str = None
     ) -> "Timesheet":
 
         """
@@ -580,6 +587,7 @@ class Timesheet:
             storage_name=storage_name,
             save=save,
             data_path=data_path,
+            output_path = output_path
         )
         return self
 
@@ -594,6 +602,28 @@ class Timesheet:
         stem = self.__class__.__name__.lower()
         return f"{stem}{utils.next_number(stem = stem, names = names)}{extension}"
 
+    def _choose_path(self, path : Union[str, None],  default : str, extension : str )-> Tuple[str, str]:
+            # If no path provided, default to {storage_name}.json, in directory of output
+            # path if provided, otherwise storage path (always set)
+
+        default_supplied = False
+        if path is None:
+            if default is None: 
+                raise ValueError("Path is None, but no default path was passed")
+            default_supplied = True
+            path = default
+        storage_dir = dirname(path)
+        # If authorized, create target directory if it does not exist.
+        if default_supplied:
+            path = f"{storage_dir}/{self._storage_name}{utils.next_number(self._storage_name, listdir(storage_dir))}.{extension}"
+        # path = (
+        #    utils.add_extension(os.path.self.data_path, ".json")
+        #    if self.data_path is not None
+        #    else self._default_name(names=listdir("."), extension=".json")
+        # )
+        return storage_dir, path
+
+
     def write_json(self, path: str = None, make_directory=False) -> "Timesheet":
         """
         Write an instance's day data to JSON. This makes it possible to copy the instance by caling `Timesheet.from_json` on the path to the created JSON.
@@ -601,23 +631,13 @@ class Timesheet:
         :param path str: Optional path to output JSON. Defaults to the instance's :code:`data_path` attribute, or a generated unique name if it is :code:`None`.
         :rtype None:
         """
-        if path is None:
-            # If no path provided, default to {storage_name}.json, in directory of output
-            # path if provided, otherwise storage path (always set)
-            storage_dir = split(
-                self._data_path
-                if self._data_path is not None
-                else self._storage_path
-            )[0]
+        storage_dir, path = self._choose_path(path = path, default = self._data_path, extension = "json")
             # If authorized, create target directory if it does not exist.
-            path = f"{storage_dir}/{self._storage_name}{utils.next_number(self._storage_name, listdir(storage_dir))}.json"
             # path = (
             #    utils.add_extension(os.path.self.data_path, ".json")
             #    if self.data_path is not None
             #    else self._default_name(names=listdir("."), extension=".json")
             # )
-        else:
-            storage_dir = split(path)[0]
         if not exists(storage_dir) and make_directory:
             makedirs(storage_dir)
         with open(path, "w") as f:
@@ -645,7 +665,7 @@ class Timesheet:
 
     def write_json_summary(
         self,
-        data_path: str,
+        output_path: str,
         start_date: Union[datetime.date, str] = datetime.date.min,
         end_date: Union[datetime.date, str] = datetime.date.max,
         aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
@@ -654,12 +674,12 @@ class Timesheet:
         summary = self.summarize(
             start_date=start_date, end_date=end_date, aggregate=aggregate
         )
-        with open(data_path, "w") as f:
+        with open(output_path, "w") as f:
             json.dump(summary, f)
 
     def write_csv_summary(
         self,
-        path: str,
+        output_path: str,
         start_date: Union[datetime.date, str] = datetime.date.min,
         end_date: Union[datetime.date, str] = datetime.date.max,
         aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
@@ -672,7 +692,7 @@ class Timesheet:
         breakdowns = {"date" : list(data.keys()),**aggregate.string_format.decompose_dict(data.keys()), "hours" : list(data.values())} 
 
         # Write dict to csv with columns year, month, date, hours
-        with open(path, "w") as f:
+        with open(output_path, "w") as f:
             writer = csv.writer(f)
             writer.writerow(breakdowns.keys())
             # Transform into list of rows
@@ -688,6 +708,7 @@ class Timesheet:
         storage_name: str = None,
         save: bool = True,
         data_path: str = None,
+        output_path : str = None
     ) -> "Timesheet":
         """
         Create a :code:`Timesheet` instance from a path to a JSON representation of an instance's data.
@@ -709,5 +730,6 @@ class Timesheet:
             storage_name=storage_name,
             save=save,
             data_path=data_path,
+            output_path=output_path
         )
         return instance

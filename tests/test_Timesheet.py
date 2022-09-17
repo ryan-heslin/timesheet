@@ -58,10 +58,10 @@ def test_auto_data_path(helpers, tmp_path):
          
     """Default output path is correctly formed if `data_path` is not specified"""
     system(f"touch {tmp_path}/timesheet1.json {tmp_path}/timesheet2.json")
-    original = helpers.full_Timesheet(save=False)
+    original = helpers.full_Timesheet(save=False, data_path = "{tmp_path}"  )
     original.write_json(path=None)
     new = helpers.Timesheet.from_json(
-        json_path=f"{split(utils.storage_path())[0]}/{original.storage_name}1.json", save=False
+        json_path=f"{tmp_path}/{original.storage_name}1.json", save=False
     )
     assert original.equals(new)
 
@@ -142,7 +142,7 @@ def test_write_summary(helpers, tmp_path):
     latest_date = max(helpers.expected_day_times.keys())
     test.write_json_summary(
         start_date=min(helpers.expected_day_times.keys()),
-        data_path=data_path,
+        output_path=data_path,
         end_date=latest_date,
     )
     with open(data_path) as f:
@@ -156,7 +156,7 @@ def test_write_csv(helpers, tmp_path):
     instance = helpers.Timesheet(
         data=helpers.daylog_data, save=True, storage_path=f"{tmp_path}/timesheet"
     )
-    instance.write_csv_summary(path=data_path)
+    instance.write_csv_summary(output_path=data_path)
     with open(data_path) as f:
         reader = csv.reader(f)
         read_data = dict(zip(next(iter(reader)), zip(*reader)) )
@@ -170,7 +170,7 @@ def test_write_empty_csv(helpers, tmp_path):
     """Test that an instance with no recorded hours correctly writes to csv"""
     data_path = f"{tmp_path}/test.csv"
     instance = helpers.bare_Timesheet
-    instance.write_csv_summary(path=data_path)
+    instance.write_csv_summary(output_path=data_path)
     with open(data_path) as f:
         reader = csv.reader(f)
         read_data = dict(zip(next(iter(reader)), zip(*reader)) )
