@@ -25,7 +25,12 @@ from timesheet import Timesheet
 
 # From https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
 def json_serialize(x : Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]):
-    """Convert datetime objects to ISO format suitable for JSON serialization"""
+    """Convert datetime objects to ISO format suitable for JSON serialization
+    :param x Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]: an object 
+    of these types
+
+
+    """
     if isinstance(x, (datetime.datetime, datetime.time)):
         return x.isoformat()
     elif isinstance(x, Timesheet.DayLog):
@@ -33,7 +38,11 @@ def json_serialize(x : Union[datetime.datetime, datetime.time, "Timesheet.DayLog
     raise TypeError(f"Cannot serialize object of type {type(x)}")
 
 def path_checker(permissions : int) -> Callable: 
-    """Create function to check whether a user has specified permissions to use a path"""
+    """Create function to check whether a user has specified permissions to use a path
+    permissions int: One or more :code:`os` permission codes to check for (e.g., :code:`os.W_OK | os.X_OK` ) 
+    :rtype Callable: Function with :code:`bool` return type that checks whether 
+    the user has the given permissions for some path
+    """
     def inner(path : str):
         return os.access(path, permissions)
     return inner
@@ -42,7 +51,12 @@ path_readable = path_checker((os.R_OK))
 path_writeable = path_checker(os.W_OK | os.X_OK)
 
 def date_parser(di : Dict[str, str]) -> Dict[str, "Timesheet.DayLog"]:
-    """Parses a JSON where keys are ISO-formatted dates and values are lists of ISO-formatted times to be converted to DiffTime objects"""
+    """Parses a JSON where keys are ISO-formatted dates and values are lists of ISO-formatted times to be converted to DiffTime objects
+
+    :param di: Dict of timestamp strings in any ISO format
+    :rtype Dict[str, "Timesheet.DayLog"]: Dict of :code:`DayLog` objects constructed 
+    from timestamps
+    """
     out = {}
     for k in di:
         date = datetime.date.fromisoformat(k)
@@ -52,7 +66,10 @@ def date_parser(di : Dict[str, str]) -> Dict[str, "Timesheet.DayLog"]:
 
 
 def validate_datestamps(datestamps: Iterable[str]) -> bool:
-    """Confirms whether all datestamps in an iterable parse in ISO format"""
+    """Confirms whether all datestamps in an iterable parse in ISO format
+    :param datestamps Iterable[str]: Iterable of date strings whose formats to check
+    :rtype bool: :code:`bool` indicating whether all datestamps were valid
+    """
     try:
         return all(
             datetime.date.fromisoformat(timestamp) or True for timestamp in datestamps
