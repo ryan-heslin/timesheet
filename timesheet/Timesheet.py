@@ -12,9 +12,9 @@ from os.path import exists
 from os.path import split
 from typing import Dict
 from typing import List
+from typing import Tuple
 from typing import TypeVar
 from typing import Union
-from typing import Tuple
 
 from timesheet import constants
 from timesheet import TimeAggregate
@@ -159,11 +159,12 @@ class DayLog:
         return len(self.timestamps)
 
     @staticmethod
-    def yyyymmdd(timestamp: Union[datetime.datetime, datetime.date, None] = None):
+    def yyyymmdd(timestamp: Union[datetime.datetime, datetime.date, None] = None) -> str:
         """
         Format a date YYYY-MM-DD
 
         :param timestamp Union[datetime.datetime,  None]: :code:`datetime.datetime` instance
+        :rtype str: The formatted date
         """
         date_value = datetime.datetime.today() if timestamp is None else timestamp
         parser = (
@@ -181,10 +182,12 @@ class DayLog:
             + [str(x) for x in self.timestamps]
         )
 
-    def copy(self) -> "DayLog": 
-        """Create a copy with identical data"""
+    def copy(self) -> "DayLog":
+        """Create a copy with identical data
+        :rtype DayLog: Copy with identical data
+        """
         return __class__(date = self.date, timestamps = self.timestamps.copy())
-        
+
     def __add__(self, other: "DayLog") -> "DayLog":
         """
         Combine this :code:`DayLog` instance with another by creating a new
@@ -192,7 +195,7 @@ class DayLog:
 
         :param other "DayLog": Another :code:`DayLog` instance. It must refer to the same date, and its timestamps, if they exist, must meet the requirements for :code:`DayLog.concat_timestamps`
         :raises ValueError: If any of the above conditions are not met
-        :rtype "DayLog" A new instance with the concatenated timestamps
+        :rtype DayLog: A new instance with the concatenated timestamps
         """
         if self.date != other.date:
             raise ValueError(
@@ -427,7 +430,7 @@ class Timesheet:
         :param storage_name str: Optional name for this instance in :code:`shelve` storage. Generated automatically if omitted.
         :param overwrite bool: Optional :code:`bool` indicating whether to overwrite an existing instance that shares :code:`storage_name`. Default :code:`False`
         :param create_directory bool: Optional logical indivating whether to create the directory containing :code:`storage_path` if it does not exist. Default :code:`False`.
-        :rtype None:
+        :rtype Timesheet: Copy of the instance
         """
         storage_name = self._storage_name if storage_name is None else storage_name
         path = self._storage_path if path is None else path
@@ -464,8 +467,13 @@ class Timesheet:
 
         return self
 
-    def copy(self, storage_name = None) -> "Timesheet": 
+    def copy(self, storage_name = None) -> "Timesheet":
+        """Copy a :code:`Timesheet` instance
+        :param storage_name: Name to assign to copy in :code:`shelve` storage 
+        :rtype Timesheet: The newly created copy
+        """
         return __class__(data = self.record, storage_path = self.storage_path, storage_name=storage_name, data_path=self.data_path, save = False)
+
     @staticmethod
     def load(storage_name: str, storage_path: str = None) -> "Timesheet":
         """
@@ -487,7 +495,7 @@ class Timesheet:
         :param storage_name str: String identifying the target instance in :code:`shelve` storage.
         :param storage_path str:
         :param confirm bool: Optional :code:`bool`indicating whether to ask for confirmation before deletion (if run interactively) or abort (if not). Default :code:`True`
-        :rtype None: [TODO:description]
+        :rtype None: 
         """
         confirm_prompt = (
             "Press enter to confirm deletion, any other key to abort"
@@ -519,7 +527,11 @@ class Timesheet:
         date: Union[datetime.date, str] = None,
         timestamps: List[datetime.datetime] = None,
     ) -> "Timesheet":
-        """Concatenate additional timestamps for a given date, or create a new entry if none exists"""
+        """Concatenate additional timestamps for a given date, or create a new entry if none exists
+        :param date: Union[datetime.date, str] Date whose data will be combined with the new timestmaps
+        :param timestamps: List[datetime.datetime] Timestamps to append 
+        :rtype Timesheet: Copy of the modified instance
+        """
         date = datetime.datetime.today() if date is None else date
         timestamps = (
             [datetime.datetime.today()]
@@ -608,7 +620,7 @@ class Timesheet:
 
         default_supplied = False
         if path is None:
-            if default is None: 
+            if default is None:
                 raise ValueError("Path is None, but no default path was passed")
             default_supplied = True
             path = default
@@ -629,7 +641,8 @@ class Timesheet:
         Write an instance's day data to JSON. This makes it possible to copy the instance by caling `Timesheet.from_json` on the path to the created JSON.
 
         :param path str: Optional path to output JSON. Defaults to the instance's :code:`data_path` attribute, or a generated unique name if it is :code:`None`.
-        :rtype None:
+        :make_directory: bool Whether to create directory to contain :code:`path` if it does not already exist 
+        :rtype Timesheet: Copy of the modified instance
         """
         storage_dir, path = self._choose_path(path = path, default = self._data_path, extension = "json")
             # If authorized, create target directory if it does not exist.
@@ -689,7 +702,7 @@ class Timesheet:
             start_date=start_date, end_date=end_date, aggregate=aggregate
         )
         # Split each datestamp into components
-        breakdowns = {"date" : list(data.keys()),**aggregate.string_format.decompose_dict(data.keys()), "hours" : list(data.values())} 
+        breakdowns = {"date" : list(data.keys()),**aggregate.string_format.decompose_dict(data.keys()), "hours" : list(data.values())}
 
         # Write dict to csv with columns year, month, date, hours
         with open(output_path, "w") as f:
@@ -713,8 +726,7 @@ class Timesheet:
         """
         Create a :code:`Timesheet` instance from a path to a JSON representation of an instance's data.
 
-        :param cls [TODO:type]: [TODO:description]
-        :param data_path str: Path to a JSON file containing data for the instance, perhaps generated from another instance using.
+        :param data_path str: Path to a JSON file containing data for the instance, perhaps generated from another instance using :code:`write_json`.
         :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
