@@ -32,7 +32,7 @@ class DiffTime(datetime.time):
         minute: int = 0,
         second: int = 0,
         microsecond: int = 0,
-        tzinfo: datetime.tzinfo = None,
+        tzinfo: Union[datetime.tzinfo, None] = None,
         *,
         fold: int = 0,
     ):
@@ -56,7 +56,6 @@ class DiffTime(datetime.time):
         """
         Alternate constructor that converts an existing :code:`datetime.time` or :code:`datetime.datetime` instance to :code:`DiffTime`
 
-        :param cls [TODO:type]: [TODO:description]
         :param time Union["DiffTime", datetime.time, datetime.datetime]: :code:`datetime.time` or :code:`datetime.datetime` instance
         :rtype "DiffTime": :code:`DiffTime` instance
         """
@@ -102,7 +101,7 @@ class DayLog:
     hour_conversions = {"days": 24, "seconds": 1 / 3600, "microseconds": 1 / 3.6e9}
 
     def __init__(
-        self, date: Union[datetime.date, str, None] = None, timestamps: time_list = None
+        self, date: Union[datetime.date, str, None] = None, timestamps: Union[time_list, None] = None
     ) -> None:
         """
         Initialize DayLog instance. This class records a series of timestamps within the
@@ -130,12 +129,12 @@ class DayLog:
         """
         return self.timestamps == other.timestamps
 
-    def concat_timestamps(self, timestamps: time_list = None) -> "DayLog":
+    def concat_timestamps(self, timestamps: Union[time_list, None] = None) -> "DayLog":
         """
         Concatenate additional timestamps to those stored in the calling instance. Added timestamps must all be later than the last timestamp stored in the
         caller and sorted in ascending order.
 
-        :param timestamps time_list: [TODO:description]
+        :param timestamps time_list: List containing elements of class :code:`datetime.datetime`, :code:`datetime.time`, or :code:`Timesheet.DiffTime`.
         :rtype None:
         :raises ValueError: If any member of :code:`timestamps` is later than the caller's latest timestamp and/or :code:`timestamps` is not sorted in ascending order.
         """
@@ -287,12 +286,12 @@ class Timesheet:
 
     def __init__(
         self,
-        data: Dict[str, DayLog] = None,
-        storage_path: str = None,
-        storage_name: str = None,
+        data: Union[Dict[str, DayLog], None] = None,
+        storage_path: Union[str, None] = None,
+        storage_name: Union[str, None] = None,
         save: bool = True,
-        data_path: str = None,
-        output_path = None
+        data_path: Union[str, None] = None,
+        output_path: Union[str, None] = None
     ) -> None:
         """
         Initialize a :code:`Timesheet` instance.
@@ -418,8 +417,8 @@ class Timesheet:
 
     def save(
         self,
-        path: str = None,
-        storage_name: str = None,
+        path: Union[str, None] = None,
+        storage_name: Union[str, None] = None,
         overwrite: bool = False,
         create_directory: bool = False,
     ) -> "Timesheet":
@@ -469,13 +468,13 @@ class Timesheet:
 
     def copy(self, storage_name = None) -> "Timesheet":
         """Copy a :code:`Timesheet` instance
-        :param storage_name: Name to assign to copy in :code:`shelve` storage 
+        :param storage_name: Name to assign to copy in :code:`shelve` storage
         :rtype Timesheet: The newly created copy
         """
         return __class__(data = self.record, storage_path = self.storage_path, storage_name=storage_name, data_path=self.data_path, save = False)
 
     @staticmethod
-    def load(storage_name: str, storage_path: str = None) -> "Timesheet":
+    def load(storage_name: str, storage_path: Union[str, None] = None) -> "Timesheet":
         """
         Load a :code:`Timesheet` instance from storage.
 
@@ -495,7 +494,7 @@ class Timesheet:
         :param storage_name str: String identifying the target instance in :code:`shelve` storage.
         :param storage_path str:
         :param confirm bool: Optional :code:`bool`indicating whether to ask for confirmation before deletion (if run interactively) or abort (if not). Default :code:`True`
-        :rtype None: 
+        :rtype None:
         """
         confirm_prompt = (
             "Press enter to confirm deletion, any other key to abort"
@@ -510,7 +509,7 @@ class Timesheet:
         )
 
     @staticmethod
-    def list(path: str = None) -> List[str]:
+    def list(path: Union[str, None] = None) -> List[str]:
         """
         List the names of :code:`Timesheet` instances stored at a particular path
 
@@ -524,12 +523,12 @@ class Timesheet:
 
     def concat_timestamps(
         self,
-        date: Union[datetime.date, str] = None,
-        timestamps: List[datetime.datetime] = None,
+        date: Union[datetime.date, str, None] = None,
+        timestamps: Union[List[datetime.datetime], None] = None,
     ) -> "Timesheet":
         """Concatenate additional timestamps for a given date, or create a new entry if none exists
         :param date: Union[datetime.date, str] Date whose data will be combined with the new timestmaps
-        :param timestamps: List[datetime.datetime] Timestamps to append 
+        :param timestamps: List[datetime.datetime] Timestamps to append
         :rtype Timesheet: Copy of the modified instance
         """
         date = datetime.datetime.today() if date is None else date
@@ -554,11 +553,11 @@ class Timesheet:
     def merge(
         self,
         other: "Timesheet",
-        storage_path: str = None,
-        storage_name: str = None,
+        storage_path: Union[str, None] = None,
+        storage_name: Union[str, None] = None,
         save: bool = True,
-        data_path: str = None,
-        output_path : str = None
+        data_path: Union[str, None] = None,
+        output_path : Union[str, None] = None
     ) -> "Timesheet":
 
         """
@@ -635,13 +634,12 @@ class Timesheet:
         # )
         return storage_dir, path
 
-
-    def write_json(self, path: str = None, make_directory=False) -> "Timesheet":
+    def write_json(self, path: Union[str, None] = None, make_directory=False) -> "Timesheet":
         """
         Write an instance's day data to JSON. This makes it possible to copy the instance by caling `Timesheet.from_json` on the path to the created JSON.
 
         :param path str: Optional path to output JSON. Defaults to the instance's :code:`data_path` attribute, or a generated unique name if it is :code:`None`.
-        :make_directory: bool Whether to create directory to contain :code:`path` if it does not already exist 
+        :make_directory: bool Whether to create directory to contain :code:`path` if it does not already exist
         :rtype Timesheet: Copy of the modified instance
         """
         storage_dir, path = self._choose_path(path = path, default = self._data_path, extension = "json")
@@ -717,11 +715,11 @@ class Timesheet:
     def from_json(
         cls,
         json_path: str,
-        storage_path: str = None,
-        storage_name: str = None,
+        storage_path: Union[str, None] = None,
+        storage_name: Union[str, None] = None,
         save: bool = True,
-        data_path: str = None,
-        output_path : str = None
+        data_path: Union[str, None] = None,
+        output_path : Union[str, None] = None
     ) -> "Timesheet":
         """
         Create a :code:`Timesheet` instance from a path to a JSON representation of an instance's data.
@@ -730,7 +728,6 @@ class Timesheet:
         :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
         :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
         :param save bool: Optional bool determining whether to save on instance creation
-        :param data_path str: [TODO:description]
         :rtype "Timesheet": Created :code:`Timesheet instance`
         """
         with open(json_path) as f:

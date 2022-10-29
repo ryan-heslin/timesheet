@@ -17,25 +17,21 @@ class TimeAggregate:
 class DateFormat():
 
     def __init__(self, format : str, components : Tuple[str, ...], separator : Union[str, None] = "-") ->  None:
-        if not (separator is None or separator in format): 
+        if not (separator is None or separator in format):
             raise ValueError(f"Separator {separator} not used in format {format}")
-        self.format = format 
+        self.format = format
         self.separator = separator
         self.components = components
 
-    def decompose(self, datestamp : str) -> List[str]: 
+    def decompose(self, datestamp : str) -> List[str]:
         """Break date format string into its component pieces"""
         return  [part.lstrip("0") for part in datestamp.split(self.separator)]
 
-    def decompose_dict(self, datestamps : Iterable[str]) -> Dict[str, List[str]]: 
+    def decompose_dict(self, datestamps : Iterable[str]) -> Dict[str, Tuple[str]]:
         """Turn a list of datestamps in format into dict of component lists"""
         return dict(zip(self.components, zip(*[ self.decompose(datestamp) for datestamp in datestamps ])))
 
-
-         
-
-# Days 
-
+# Days
 def increment_day(date: datetime.date):
     return date + datetime.timedelta(days=1)
 
@@ -43,11 +39,11 @@ def increment_day(date: datetime.date):
 def floor_day(date: datetime.date):
     return date
 
-def decrement_day(date:datetime.date): 
+def decrement_day(date:datetime.date):
     return date - datetime.timedelta(days=1)
 
 
-# Weeks 
+# Weeks
 
 def increment_week(date: datetime.date):
     # Increments to Monday of next week
@@ -69,7 +65,7 @@ def increment_month(date: datetime.date):
     year = date.year + date.month // 12
     return datetime.date(year=year, month=month, day=1)
 
-# Months 
+# Months
 
 def floor_month(date: datetime.date):
     return datetime.date(year=date.year, month=date.month, day=1)

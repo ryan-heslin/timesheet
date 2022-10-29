@@ -24,7 +24,6 @@ def test_create_Timesheet(helpers, tmp_path):
     path, __ = helpers.make_paths(tmp_path, "test", "test.json")
     os.system(f"{ts} create --storage_path {path}")
     instance = os.system(f"{ts} locate-timesheet --storage_path {path}")
-    #assert len(instance) == 1 and len(instance.data.values()) == 1
 
 
 
@@ -50,9 +49,9 @@ def test_delete(helpers, tmp_path):
     os.system(f"{ts} delete --storage_path {path} --storage_name timesheet1")
     try:
      os.system(f"{ts} locate_timesheet --storage_name timesheet1 --storage_path {path}")
-    except KeyError: 
-        return True 
-    except Exception as e: 
+    except KeyError:
+        return True
+    except Exception as e:
         raise e
 
 def test_list(helpers, tmp_path):
@@ -62,7 +61,7 @@ def test_list(helpers, tmp_path):
         os.system(f"{ts} create --storage_path {path} --storage_name {name}")
     assert { x.group(0) for x in re.finditer(r"test\d",helpers.capture_stdout(f"{ts} list --storage_path {path}")) } == storage_names
 
-def test_append_empty(helpers, tmp_path): 
+def test_append_empty(helpers, tmp_path):
     """Appending the empty list is a no-op"""
     path = helpers.test_path(tmp_path, "test")
     instance = helpers.full_Timesheet(storage_path = path, storage_name = "timesheet1")
@@ -80,7 +79,7 @@ def test_append_fresh_date(helpers, tmp_path):
     os.system(f"{ts} append -t {strings} --storage_name timesheet1 --date {date} --storage_path {path}")
     instance = helpers.Timesheet.load(storage_name = "timesheet1", storage_path = path)
     assert instance[date].timestamps == timestamps
-    
+
 def test_append_old_date(helpers, tmp_path):
     """Add more timestamps to existing entry"""
     timestamps = helpers.timestamps.copy()
@@ -102,11 +101,11 @@ def test_write_json_summary(helpers, tmp_path):
     storage_name = "test"
     test = helpers.Timesheet(helpers.daylog_data, storage_path = storage_path, storage_name = storage_name)
     os.system(f"{ts} summarize --storage_path {storage_path} --storage_name {storage_name} --output_path {tmp_path}/test.json ")
-    with open( f"{tmp_path}/test.json" ) as f: 
+    with open( f"{tmp_path}/test.json" ) as f:
         result = json.load(f)
 
     assert all(helpers.dict_subset(result, helpers.expected_day_times))
-   
+
 def test_write_csv_summary(helpers, tmp_path):
     storage_path = f"{tmp_path}/timesheet"
     storage_name = "test"
@@ -118,7 +117,7 @@ def test_write_csv_summary(helpers, tmp_path):
     with open(output_path) as f:
         reader = csv.reader(f)
         first_data = dict(zip(next(iter(reader)), zip(*reader)) )
-    with open(compare_path) as f: 
+    with open(compare_path) as f:
         reader = csv.reader(f)
         second_data = dict(zip(next(iter(reader)), zip(*reader)) )
     assert first_data == second_data
@@ -160,7 +159,7 @@ def test_single_merge(helpers, tmp_path):
     ).record
     assert all(result[k].timestamps == comparison[k].timestamps for k in result.keys())
 
-def test_disjoint_merge(helpers, tmp_path): 
+def test_disjoint_merge(helpers, tmp_path):
     storage_name1 = "test1"
     storage_path = f"{tmp_path}/test"
     storage_name2 = "test2"
@@ -172,7 +171,7 @@ def test_disjoint_merge(helpers, tmp_path):
 
     instance1 = Timesheet.Timesheet(data = data1, save = True, storage_name = storage_name1, storage_path = storage_path)
     instance2 = Timesheet.Timesheet(data = data2,  save = True, storage_name = storage_name2, storage_path = storage_path)
-        
+
     os.system(f"{ts} merge --timesheets {storage_name1}={storage_path} --timesheets {storage_name2}={storage_path} --storage_name {result_storage_name} --storage_path {storage_path}")
     result = helpers.Timesheet.load(storage_name = result_storage_name, storage_path = storage_path)
 

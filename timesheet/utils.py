@@ -79,8 +79,8 @@ def validate_datestamps(datestamps: Iterable[str]) -> bool:
 
 def storage_path() -> str:
     """
-    Returns the storage path known to :code:`timesheet` - the :code:`TIMESHEET_DIR` 
-    environment variable if set, otherwise the path :code:`"~/.timesheet/timesheets"`. 
+    Returns the storage path known to :code:`timesheet` - the :code:`TIMESHEET_DIR`
+    environment variable if set, otherwise the path :code:`"~/.timesheet/timesheets"`.
     :rtype str: The path found.
     """
     return getenv("TIMESHEET_DIR", expanduser("~/.timesheet/timesheets"))
@@ -88,35 +88,36 @@ def storage_path() -> str:
 
 def next_number(stem : str, names : List[str]) -> int:
     """
-    Given a list of strings and a stem, finds all that start with the stem and 
+    Given a list of strings and a stem, finds all that start with the stem and
     end with digits and returns the highest such number plus one.
-    :param stem: str Filename to check for 
-    :param names: List[str] Strings to check for any starting with the stem and ending 
+    :param stem: str Filename to check for
+    :param names: List[str] Strings to check for any starting with the stem and ending
     with a  number
     :rtype int: The next sequential number, starting from 1.
     """
     if names == []:
         return 1
     pattern = stem + r"(\d+)\.?.*$"
-    numbers = [0]
+    numbers = set([0])
     for name in names:
         number = re.match(pattern, name)
         if number is not None:
             # If somehow a number is negative
-            numbers.append(abs(int(number.group(1))))
+            numbers.add(abs(int(number.group(1))))
     return max(numbers) + 1
 
 
 # storage_name ignored if None
 def use_shelve_file(
-        func : Callable, storage_name: str = None, path: str = None, confirm_prompt: str = None
+        func : Callable, storage_name: Union[str, None] = None,
+        path: Union[str, None] = None, confirm_prompt: Union[str, None] = None
 ) -> Any:
     """Apply an arbitrary function of one argument to the object bound to a name in a given shelve file
-    :param func: Callable One-argument function to apply to item 
-    :param storage_name: str Name of :code:`shelve` file to open 
+    :param func: Callable One-argument function to apply to item
+    :param storage_name: str Name of :code:`shelve` file to open
     :param path: str Path to :code:`shelve` storage file
-    :param confirm_prompt: str String giving prompt to show the user before invoking 
-    the function. If :code:`None` (default), ignored 
+    :param confirm_prompt: str String giving prompt to show the user before invoking
+    the function. If :code:`None` (default), ignored
     :rtype Any: The result of calling the function
     """
     path = f"{storage_path()}" if path is None else path
@@ -138,9 +139,9 @@ def use_shelve_file(
 # https://stackoverflow.com/questions/2024566/how-to-access-outer-class-from-an-inner-class
 class StandardCommandFactory:
     """Creates a Click command that inherits arguments from another command"""
-    def configure(self, commands : List =None) -> None:
+    def configure(self, commands : Union[List, None] = None) -> None:
         """
-        Add commands to an instance 
+        Add commands to an instance
         :param commands: List List of commands to add
         """
         commands = [] if commands is None else commands
@@ -164,15 +165,15 @@ def sum_DayLogs(
     end_date: Union[datetime.date, str] = datetime.date.max,
     aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
 ) -> Dict[str, float]:
-    """ 
-    Given a dict of :code:`DayLog` objects, summarizes hours spent at the 
+    """
+    Given a dict of :code:`DayLog` objects, summarizes hours spent at the
     specified level of aggregation.
 
     :param start_date: Union[datetime.date, str] Earliest date to include (inclusive)
     :param end_date: Union[datetime.date, str] Latest date to include (inclusive)
-    :param aggregate: TimeAggregate.TimeAggregate Level of aggregation to use. 
+    :param aggregate: TimeAggregate.TimeAggregate Level of aggregation to use.
     Defaults to days; weeks, months, and years are also built-in.
-    :rtype Dict[str, float]: Dict pairing each datestamp within the aggregation 
+    :rtype Dict[str, float]: Dict pairing each datestamp within the aggregation
     period to the number of hours worked.
     """
     start_date = handle_date_arg(start_date)
@@ -214,14 +215,14 @@ def handle_date_arg(
     date: Union[datetime.date, str, None], default: Any = None, allow_None=False
 ) -> Any:
     """
-    Converts a string to :code:`datetime.date` and optionally raises an error if 
-    it is :code:`None`  
+    Converts a string to :code:`datetime.date` and optionally raises an error if
+    it is :code:`None`
 
     :param date: Union[datetime.date, str, None] Argument to process
-    :param default: Any Default value to return if :code:`allow_None = True` 
-    and :code:`date is None`. 
-    :allow_None: bool Logical determining whether to substitute a default if 
-    :code:`date is None` instead of raising an error. 
+    :param default: Any Default value to return if :code:`allow_None = True`
+    and :code:`date is None`.
+    :allow_None: bool Logical determining whether to substitute a default if
+    :code:`date is None` instead of raising an error.
     :rtype Any: The value returned by the above logic
     """
 

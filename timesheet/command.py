@@ -102,7 +102,7 @@ def append(
     storage_path: str,
     timestamps: list = [str],
     verbose: bool = False,
-    date: datetime.date = None,
+    date: Union[datetime.date, None] = None,
 ):
     date = datetime.date.today() if date is None else date
     if timestamps == []:
@@ -126,25 +126,25 @@ def append(
 # @click.pass_context
 # TODO check if these inherit defaults
 def summarize(
-    storage_name: str, storage_path: str,  output_path: str = None, 
-    start_date : Union[str, datetime.date] = datetime.date.min, 
-    end_date : Union[str, datetime.date] = datetime.date.max, 
-    aggregate : str = "day", 
+    storage_name: str, storage_path: str,  output_path: Union[str, None] = None,
+    start_date : Union[str, datetime.date] = datetime.date.min,
+    end_date : Union[str, datetime.date] = datetime.date.max,
+    aggregate : str = "day",
     output_type = None
 ):
     # @storage_name.forward(locate_timesheet)
     instance = Timesheet.Timesheet.load(
             storage_name=storage_name, storage_path=storage_path
         )
-    if output_path is None: 
+    if output_path is None:
         if instance.output_path is None:
             raise ValueError("Must specify an output path if instance has no default")
         output_path = instance.output_path
 
-    
-    if output_type is None: 
+
+    if output_type is None:
         output_type = splitext(output_path)[-1]
-    try: 
+    try:
         output_type = Output[output_type.lstrip(".").upper()]
     except KeyError:
         output_type = Output.JSON
@@ -152,13 +152,13 @@ def summarize(
     try:
         # Get appropriate aggregate object
         aggregate_value : TimeAggregate.TimeAggregate = TimeAggregate.__dict__[aggregate.title() ]
-    except KeyError as e: 
+    except KeyError as e:
         click.echo(f"Invalid aggregate {aggregate}; must choose one of 'day', 'week', 'month', or 'year'")
         raise e
 
-    if output_type == Output.JSON: 
+    if output_type == Output.JSON:
         instance.write_json_summary(output_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate_value)
-    else: 
+    else:
         instance.write_csv_summary(output_path=output_path, start_date = start_date, end_date=end_date, aggregate = aggregate_value)
     return 0
 
@@ -201,16 +201,16 @@ def list(storage_path : str =utils.storage_path()) -> dict:
     return f
 
 # https://click.palletsprojects.com/en/5.x/arguments/# Recommends "graceful no-op" if varaidic arg is empty, so `timesheets` is optional despite conceptually being mandatory
-@click.option("--timesheets", multiple = True, 
+@click.option("--timesheets", multiple = True,
         help = "TODO", default = [])
 @click.option("--storage_path", help = f"{constants.HELP_MAP['storage_path']} (assigned to output object)" , default = utils.storage_path())
 @click.option("--storage_name", help = f"{constants.HELP_MAP['storage_name']} (assigned to output object)", default = None)
 @click.option("--data_path", help = f"{constants.HELP_MAP['data_path']} (assigned to output object)", default = None)
 @timesheet.command(name = "merge")
-def merge(timesheets : List[str] = [], 
-        data_path : str =None,
+def merge(timesheets : List[str] = [],
+        data_path : Union[str, None] = None,
         storage_path : str =utils.storage_path(),
-        storage_name : str =None,
+        storage_name : Union[str, None] = None,
         verbose : bool =False,
 ):
     loaded_timesheets = [ Timesheet.Timesheet.load(*string.split("=")) for string in timesheets]
@@ -230,7 +230,7 @@ def merge(timesheets : List[str] = [],
 
     # Save output - this does work when run interactively
     combined.save(create_directory = True, overwrite=True)
-    if verbose: 
+    if verbose:
         click.echo(f"Merged {n_timesheets}(s) into  {combined.storage_name} at {combined.storage_path}")
-    
+
     return 0

@@ -19,18 +19,6 @@ from timesheet import utils
 test_date = "2022-06-19"
 test_datestamp = datetime.date.fromisoformat(test_date)
 
-# @pytest.fixture
-# def bare_Timesheet():
-## test_date = DayLog.yyyymmdd(datetime.date.today())
-# return Timesheet(save=False)
-#
-#
-# @pytest.fixture
-# def full_Timesheet(full_DayLog):
-# return Timesheet(data={"2022-06-19": full_DayLog}, save=False)
-#
-
-
 def test_bare_Timesheet(helpers):
     instance = helpers.bare_Timesheet
     assert len(instance) == 1 and len(instance.record.values()) == 1
@@ -55,10 +43,11 @@ def test_from_json(helpers, tmp_path):
 
 
 def test_auto_data_path(helpers, tmp_path):
-         
+
     """Default output path is correctly formed if `data_path` is not specified"""
     system(f"touch {tmp_path}/timesheet1.json {tmp_path}/timesheet2.json")
-    original = helpers.full_Timesheet(save=False, data_path = "{tmp_path}"  )
+    original = helpers.full_Timesheet(save=False, data_path = tmp_path)
+    #breakpoint()
     original.write_json(path=None)
     new = helpers.Timesheet.from_json(
         json_path=f"{tmp_path}/{original.storage_name}1.json", save=False
@@ -88,8 +77,8 @@ def test_delete(helpers, tmp_path):
 
 def test_list(helpers, tmp_path):
     storage_path = f"{tmp_path}/test"
-    test1 = helpers.full_Timesheet(storage_name="test1", storage_path=storage_path)
-    test2 = helpers.full_Timesheet(storage_name="test2", storage_path=storage_path)
+    _ = helpers.full_Timesheet(storage_name="test1", storage_path=storage_path)
+    _ = helpers.full_Timesheet(storage_name="test2", storage_path=storage_path)
     assert set(helpers.Timesheet.list(path=storage_path)) == {
         "test1",
         "test2",
@@ -182,12 +171,12 @@ def test_write_empty_csv(helpers, tmp_path):
 
 
 # TODO do these with single function
-def test_increment_day(helpers):
+def test_increment_day():
     new_datestamp = TimeAggregate.Day.increment(test_datestamp)
     assert (new_datestamp - test_datestamp).days == 1
 
 
-def test_increment_week(helpers):
+def test_increment_week():
     # Monday
     test_datestamp = datetime.date(year=2022, month=6, day=27)
     target_datestamp = datetime.date(year=2022, month=7, day=4)
@@ -198,7 +187,7 @@ def test_increment_week(helpers):
         assert new_datestamp == target_datestamp
 
 
-def test_increment_month(helpers):
+def test_increment_month():
     test_datestamp = datetime.date(year=2020, month=2, day=1)
     target_datestamp = datetime.date(year=2020, month=3, day=1)
     for i in range((target_datestamp - test_datestamp).days):
@@ -208,7 +197,7 @@ def test_increment_month(helpers):
         assert new_datestamp == target_datestamp
 
 
-def test_increment_year(helpers):
+def test_increment_year():
     test_datestamp = datetime.date(year=2020, month=1, day=1)
     target_datestamp = datetime.date(year=2021, month=1, day=1)
     for i in range((target_datestamp - test_datestamp).days):
@@ -232,13 +221,13 @@ def test_default_name(helpers, tmp_path):
 
 def test_no_storage_name(helpers, tmp_path):
     storage_path = f"{tmp_path}/timesheet"
-    test = helpers.Timesheet(
+    helpers.Timesheet(
         helpers.daylog_data, storage_name=None, storage_path=storage_path, save=True
     )
-    test2 = helpers.Timesheet(
+    helpers.Timesheet(
         helpers.daylog_data, storage_name=None, storage_path=storage_path, save=True
     )
-    test3 = helpers.Timesheet(
+    helpers.Timesheet(
         helpers.daylog_data, storage_name=None, storage_path=storage_path, save=True
     )
 
@@ -281,7 +270,7 @@ def test_intersect_merge(helpers):
             target_date: helpers.DayLog(
                 date=target_date, timestamps=[datetime.time(hour=1)]
             )
-        }, 
+        },
         save = False
     )
     left.merge(right, save = False)
@@ -371,7 +360,7 @@ def test_equals_equal(helpers):
 def test_equals_different(helpers):
     assert not helpers.full_Timesheet(save = False).equals(helpers.bare_Timesheet)
 
-def test_default_json_path(helpers, tmp_path): 
+def test_default_json_path(helpers, tmp_path):
     """Default path is correctly formed it `data_path` is specified"""
     data_path = f"{tmp_path}/test"
     test = helpers.full_Timesheet(data_path = data_path, save = False)

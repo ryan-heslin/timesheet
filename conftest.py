@@ -31,7 +31,7 @@ class Helpers:
     bare_DiffTime = DiffTime(1, 2, 3, 1000)
     bare_DayLog = DayLog()
     bare_Timesheet = Timesheet(save=False)
-    
+
     # Example timestamps
     timestamps = [
         datetime.time(0, 0, 0, 0),
@@ -39,8 +39,8 @@ class Helpers:
         datetime.time(1, 0, 1, 0),
         datetime.time(2, 1, 1, 1),
     ]
-    extra_timestamps = [ 
-            datetime.time(3, 0, 0 ,0), 
+    extra_timestamps = [
+            datetime.time(3, 0, 0 ,0),
             datetime.time(23, 59, 59, 999)]
     # Result of summarizing week
     expected_day_times = {
@@ -68,7 +68,7 @@ class Helpers:
             date = "2022-06-29",
             timestamps=[datetime.time(hour=0, minute=10), datetime.time(hour=1)]
         ),
-        "2022-06-30" : DayLog(date = "2022-06-30", timestamps = []), 
+        "2022-06-30" : DayLog(date = "2022-06-30", timestamps = []),
         "2022-07-03" : DayLog(date = "2022-07-03", timestamps = [datetime.time(hour = hour) for hour in range(1, 24, 2) ])
     }
     # Extra set of data with no common keys
@@ -134,8 +134,8 @@ class Helpers:
         open(path, "a").close()
 
     #TODO coroutine
-    @staticmethod 
-    def test_path(*args): 
+    @staticmethod
+    def test_path(*args):
         return "/".join(str(arg) for arg in [*args])
 
     @staticmethod
@@ -143,11 +143,11 @@ class Helpers:
         #while [*args]:
         return [__class__.test_path(tmp_path, x) for x in [ *args ]]
         #    yield from [__class__.test_path(tmp_path, x) for x in [ *args ]]
-    @staticmethod 
+    @staticmethod
     def timestamps_to_strings(timestamps : list ) -> str:
         """Convert list of times to string argument"""
         return " -t ".join(datetime.time.isoformat(ts) for ts in timestamps)
-    
+
     @staticmethod
     def make_dates():
         """Generate a week of fake dates"""
@@ -157,7 +157,7 @@ class Helpers:
                   #      )
 
     @staticmethod
-    def test_summarize(aggregate, expected): 
+    def test_summarize(aggregate, expected):
         test = __class__.Timesheet(data=__class__.daylog_data, save = False)
 
         assert  all(__class__.dict_subset(test.summarize(aggregate = aggregate), expected))
@@ -174,7 +174,7 @@ class Helpers:
         for date in __class__.make_dates()
         ]
 
-    @staticmethod 
+    @staticmethod
     def dict_subset(d1 : dict, d2 : dict) -> Generator[bool, None, None]:
         """Checks whether one dict is a subset of another"""
         return(d1[k] == d2[k] for k in d1.keys())
@@ -182,10 +182,10 @@ class Helpers:
     def test_write_summary_command( storage_name : str, storage_path : str, directory : str) -> None:
         """Get a list of summaries of the same week, called with varying arguments"""
         test_paths = [f"{directory}/test{i}" for i in range(7)]
-        instance = __class__.Timesheet(data = __class__.daylog_data, storage_path = storage_path, save = True, storage_name=storage_name)
+        __ = __class__.Timesheet(data = __class__.daylog_data, storage_path = storage_path, save = True, storage_name=storage_name)
         command_stem = f"{__class__.ts} summarize --storage_name {storage_name} --storage_path {storage_path}"
         # Save summary for each day of week
-        for i, date in enumerate(__class__.make_dates()):  
+        for i, date in enumerate(__class__.make_dates()):
             command = f"{command_stem} --date '{date}' --data_path '{test_paths[i]}'"
             os.system(command)
             with open(test_paths[i]) as f:
