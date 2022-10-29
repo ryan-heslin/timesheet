@@ -8,6 +8,7 @@ from timesheet import utils
 from timesheet import TimeAggregate
 
 from os.path import splitext
+from os.path import exists
 
 # Click class for shared arguments
 # https://stackoverflow.com/questions/40182157/shared-options-and-flags-between-commands
@@ -55,15 +56,21 @@ locate_timesheet = factory.create()
     "--data_path", help="JSON path attribute of created instance", default=None
 )
 @click.option("--json_source", help="Path to JSON file from which to load data")
-@click.option("--verbose", default=False, help=constants.HELP_MAP["verbose"])
+@click.option("--verbose", default=False, is_flag = True, help=constants.HELP_MAP["verbose"])
+@click.option("--overwrite", default=False, is_flag = True, help="Overwrite an existing timesheet with the same storage name?")
 @timesheet.command(name="create", cls=locate_timesheet)
 def create(
     json_source=None,
     data_path=None,
     storage_path=utils.storage_path(),
     storage_name=None,
+    overwrite = False,
     verbose=False,
 ):
+    # Fail if overwrite would delete data
+    if not overwrite and storage_name is not None and storage_name in Timesheet.Timesheet.list(storage_path):
+        click.echo(f"{storage_name} is already in use, and overwrite = False")
+        return 1
     if json_source is None:
         Timesheet.Timesheet(
             storage_path=storage_path,
@@ -192,8 +199,11 @@ def delete(storage_name, storage_path, force=False):
     help=constants.HELP_MAP["storage_path"],
 )
 def list(storage_path : str =utils.storage_path()) -> dict:
+    if not exists(storage_path):
+        click.echo(f"{storage_path} does not exist")
+        return {}
     f = utils.use_shelve_file(
-        func=lambda f: {k: v for k, v in f.items()}, path=storage_path
+        func=lambda f: {k: v for k, v in f.items() if isinstance(v, Timesheet.Timesheet)}, path=storage_path
     )
     for k, v in f.items():
         click.echo(f"{k}:")

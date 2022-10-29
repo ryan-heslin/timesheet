@@ -43,11 +43,9 @@ def test_from_json(helpers, tmp_path):
 
 
 def test_auto_data_path(helpers, tmp_path):
-
     """Default output path is correctly formed if `data_path` is not specified"""
     system(f"touch {tmp_path}/timesheet1.json {tmp_path}/timesheet2.json")
     original = helpers.full_Timesheet(save=False, data_path = tmp_path)
-    #breakpoint()
     original.write_json(path=None)
     new = helpers.Timesheet.from_json(
         json_path=f"{tmp_path}/{original.storage_name}1.json", save=False

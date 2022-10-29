@@ -21,20 +21,20 @@ def test_timesheet_installed():
 
 def test_create_Timesheet(helpers, tmp_path):
     """Create empty timesheet"""
-    path, __ = helpers.make_paths(tmp_path, "test", "test.json")
+    path, _ = helpers.make_paths(tmp_path, "test", "test.json")
     os.system(f"{ts} create --storage_path {path}")
-    instance = os.system(f"{ts} locate-timesheet --storage_path {path}")
+    os.system(f"{ts} locate-timesheet --storage_path {path}")
 
 
 
 def test_jsonify(helpers, tmp_path):
     path, data_path = helpers.make_paths(tmp_path, "test", "test.json")
     os.system(
-        f"{ts} create --data_path {data_path} --storage_path {path} --storage_name test"
+        f"{ts} create --data_path {data_path} --storage_path {path} --storage_name test --overwrite"
     )
     os.system(f"{ts} jsonify --storage_name test --data_path {data_path} --storage_path {path}")
     os.system(
-        f"{ts} create --json_source {data_path}  --storage_name test2 --storage_path {path}2"
+        f"{ts} create --json_source {data_path}  --storage_name test2 --storage_path {path}2 --overwrite"
     )
     first = helpers.Timesheet.load(storage_name="test", storage_path=path).record
     second = helpers.Timesheet.load(
@@ -58,7 +58,7 @@ def test_list(helpers, tmp_path):
     storage_names = { f"test{i}" for i in range(1, 6) }
     path= helpers.test_path(tmp_path,"test")
     for name in storage_names:
-        os.system(f"{ts} create --storage_path {path} --storage_name {name}")
+        os.system(f"{ts} create --storage_path {path} --storage_name {name} --overwrite")
     assert { x.group(0) for x in re.finditer(r"test\d",helpers.capture_stdout(f"{ts} list --storage_path {path}")) } == storage_names
 
 def test_append_empty(helpers, tmp_path):
@@ -152,7 +152,7 @@ def test_single_merge(helpers, tmp_path):
     os.system(f"{ts} merge f{storage_name}=f{storage_path} --storage_path = {storage_path} --storage_name {storage_name}")
     os.system(f"{ts} jsonify --storage_name {storage_name} --storage_path {storage_path} --data_path {tmp_path}/test.json")
     os.system(
-            f"{ts} create --json_source {tmp_path}/test.json --storage_name test2 --storage_path {storage_path}"
+            f"{ts} create --json_source {tmp_path}/test.json --storage_name test2 --storage_path {storage_path} --overwrite"
         )
     result = helpers.Timesheet.load(
         storage_name="test2", storage_path=storage_path
@@ -218,3 +218,11 @@ def test_sequential_merge(helpers):
     result = Timesheet.Timesheet.load(storage_name = storage_name)
 
     assert reference_timesheet.equals(result)
+
+def test_no_create_overwrite(helpers, tmp_path):
+    storage_name = "test"
+    storage_path = f"{tmp_path}/test"
+    instance = Timesheet.Timesheet(data = helpers.daylog_data, save = True, storage_name = storage_name, storage_path = storage_path)
+    copy = instance.copy()
+    os.system(f"{ts} create --storage_name {storage_name} --storage_path {storage_path}")
+    assert copy.equals(instance)

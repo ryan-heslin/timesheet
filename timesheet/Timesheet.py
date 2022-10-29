@@ -10,6 +10,7 @@ from os import makedirs
 from os.path import dirname
 from os.path import exists
 from os.path import split
+from os.path import isdir
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -516,10 +517,15 @@ class Timesheet:
         :param path str: Path to the :code:`shelve` file to list
         :rtype List[str]: List of keys to the :code:`shelve` file chosen.
         """
-        return utils.use_shelve_file(
+        path = utils.storage_path() if path is None else path
+        if not exists(path) and isdir(path):
+            out = []
+        else:
+            out = utils.use_shelve_file(
             path=path,
             func=lambda f: [k for k, v in f.items() if isinstance(v, Timesheet)],
         )
+        return out
 
     def concat_timestamps(
         self,
@@ -623,7 +629,9 @@ class Timesheet:
                 raise ValueError("Path is None, but no default path was passed")
             default_supplied = True
             path = default
-        storage_dir = dirname(path)
+        storage_dir = path
+        if not os.path.isdir(path):
+            storage_dir = dirname(path)
         # If authorized, create target directory if it does not exist.
         if default_supplied:
             path = f"{storage_dir}/{self._storage_name}{utils.next_number(self._storage_name, listdir(storage_dir))}.{extension}"
