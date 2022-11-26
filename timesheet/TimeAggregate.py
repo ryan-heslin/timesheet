@@ -1,13 +1,35 @@
 import datetime
-from typing import Callable, List, Dict, Iterable, Tuple, Union
+from typing import Callable
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Tuple
+from typing import Union
 
 from timesheet import constants
 
 
 class TimeAggregate:
+    """
+    Represents a unit of time, such as a day or month, used in computing
+    aggregates
+    """
     def __init__(
             self, decrement : Callable, increment: Callable,  floor: Callable, string_format: "DateFormat", name: str
-    ):
+    ) -> None:
+        """
+        :param decrement Callable: Function of one argument that reduces the
+        aggregate by one unit.
+        :param increment Callable: Function of one argument that increases the
+        :param floor Callable: Function of one argument that rounds the
+        aggregate to the date of the next lowest unit (e.g., converting a date
+                                                       to the first day of the
+                                                       month for a month aggregate).
+        :param string_format DateFormat: :code:`DateFormat` instance representing
+        the fields contained in this instance
+        :param name str: Name for the created instance
+
+        """
         self.name = name
         self.string_format = string_format
         self.decrement  = decrement
@@ -15,10 +37,26 @@ class TimeAggregate:
         self.floor = floor
 
 class DateFormat():
+    """
+    Defines a date format using ISO symbols, with support for separating into
+    individual components
+
+    """
 
     def __init__(self, format : str, components : Tuple[str, ...], separator : Union[str, None] = "-") ->  None:
-        if not (separator is None or separator in format):
+        """
+        :param format str String containing ISO date formatting symbols separated
+        by :code:`separator`, e.g. '%Y-%m-%d'.
+        :param components Tuple[str, ...] Names for each date component, e.g. 'year', 'month', 'day'
+        :separator Union[str, None] String separating each date component. It must be present
+        in :code:`format`. If None, no splitting is done and one component is assumed.
+        Default '-'.
+
+        """
+        if not ((none_sep := separator is None) or separator in format):
             raise ValueError(f"Separator {separator} not used in format {format}")
+        # if (n_split := len(format.split(separator))) != (n_components := len(components) + 1) and not none_sep:
+        #     raise ValueError(f"Format must split into {n_components} pieces, not {n_split}")
         self.format = format
         self.separator = separator
         self.components = components
@@ -32,33 +70,33 @@ class DateFormat():
         return dict(zip(self.components, zip(*[ self.decompose(datestamp) for datestamp in datestamps ])))
 
 # Days
-def increment_day(date: datetime.date):
+def increment_day(date: datetime.date) -> datetime.date:
     return date + datetime.timedelta(days=1)
 
 # No need to round date to nearest day!
-def floor_day(date: datetime.date):
+def floor_day(date: datetime.date) -> datetime.date:
     return date
 
-def decrement_day(date:datetime.date):
+def decrement_day(date:datetime.date) -> datetime.date:
     return date - datetime.timedelta(days=1)
 
 
 # Weeks
 
-def increment_week(date: datetime.date):
+def increment_week(date: datetime.date) -> datetime.date:
     # Increments to Monday of next week
     return floor_week(date) + datetime.timedelta(days=constants.DAYS_IN_WEEK)
 
-def floor_week(date: datetime.date):
+def floor_week(date: datetime.date) -> datetime.date:
     calendar = date.isocalendar()
     # Subtract -indexed value of weekday (Monday = 1, etc.)
     return date - datetime.timedelta(days=calendar[2] - 1)
 
 # Just find Monday of week and subtract 7 days
-def decrement_week(date : datetime.date):
+def decrement_week(date : datetime.date) -> datetime.date:
     return floor_week(date)  - datetime.timedelta(days=constants.DAYS_IN_WEEK)
 
-def increment_month(date: datetime.date):
+def increment_month(date: datetime.date) -> datetime.date:
     # Reworking of https://stackoverflow.com/questions/4130922/how-to-increment-datetime-by-custom-months-in-python-without-using-library
     month = date.month % constants.MONTHS_IN_YEAR + 1
     # Only increase year if last month
@@ -67,27 +105,27 @@ def increment_month(date: datetime.date):
 
 # Months
 
-def floor_month(date: datetime.date):
+def floor_month(date: datetime.date) -> datetime.date:
     return datetime.date(year=date.year, month=date.month, day=1)
 
-def decrement_month(date : datetime.date):
+def decrement_month(date : datetime.date) -> datetime.date:
     month = constants.MONTHS_IN_YEAR - (date.month -1 ) % constants.MONTHS_IN_YEAR
     year = date.year - (date.month == 1)
     return datetime.date(year=year, month=month, day=1)
 
 # Years
 
-def increment_year(date):
+def increment_year(date) -> datetime.date:
     return datetime.date(year=date.year + 1, month=1, day=1)
 
-def floor_year(date: datetime.date):
+def floor_year(date: datetime.date) -> datetime.date:
     return datetime.date(year=date.year, month=1, day=1)
 
-def decrement_year(date : datetime.date):
+def decrement_year(date : datetime.date) -> datetime.date:
     return datetime.date(year=date.year - 1, month=1, day=1)
 
 
-# Representation strftime formats for aggregates
+# Representation of strftime formats for aggregates
 
 day_format = DateFormat(format = "%Y-%m-%d", components = ( "year", "month", "day" ))
 # Year-week: week 0 for days in January before first Monday

@@ -9,8 +9,8 @@ from os import listdir
 from os import makedirs
 from os.path import dirname
 from os.path import exists
-from os.path import split
 from os.path import isdir
+from os.path import split
 from typing import Dict
 from typing import List
 from typing import Tuple

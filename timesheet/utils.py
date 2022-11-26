@@ -24,12 +24,14 @@ from timesheet import Timesheet
 
 
 # From https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
-def json_serialize(x : Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]):
+def json_serialize(x : Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]) -> Union[str, "Timesheet.time_list"]:
     """Convert datetime objects to ISO format suitable for JSON serialization
     :param x Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]: an object
     of these types
 
 
+    :rtype If :code:`x`  is a :code:`Timesheet` instance, its :code:`timestamps`
+    attribute; otherwise, an ISO-formatted string.
     """
     if isinstance(x, (datetime.datetime, datetime.time)):
         return x.isoformat()
@@ -110,7 +112,8 @@ def next_number(stem : str, names : List[str]) -> int:
 # storage_name ignored if None
 def use_shelve_file(
         func : Callable, storage_name: Union[str, None] = None,
-        path: Union[str, None] = None, confirm_prompt: Union[str, None] = None
+        path: Union[str, None] = None,
+        confirm_prompt: Union[str, None] = None
 ) -> Any:
     """Apply an arbitrary function of one argument to the object bound to a name in a given shelve file
     :param func: Callable One-argument function to apply to item

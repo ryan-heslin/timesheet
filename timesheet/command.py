@@ -1,18 +1,18 @@
 import datetime
+import enum
+from os.path import exists
+from os.path import splitext
+from typing import List
+from typing import Union
+
 import click
-from typing import Union, List
 
 from timesheet import constants
+from timesheet import TimeAggregate
 from timesheet import Timesheet
 from timesheet import utils
-from timesheet import TimeAggregate
-
-from os.path import splitext
-from os.path import exists
-
 # Click class for shared arguments
 # https://stackoverflow.com/questions/40182157/shared-options-and-flags-between-commands
-import enum
 
 class Output(enum.Enum):
     CSV = "csv"
@@ -60,12 +60,12 @@ locate_timesheet = factory.create()
 @click.option("--overwrite", default=False, is_flag = True, help="Overwrite an existing timesheet with the same storage name?")
 @timesheet.command(name="create", cls=locate_timesheet)
 def create(
-    json_source=None,
-    data_path=None,
-    storage_path=utils.storage_path(),
-    storage_name=None,
-    overwrite = False,
-    verbose=False,
+        json_source : Union[str, None]=None,
+        data_path : Union[str, None]=None,
+        storage_path : str =utils.storage_path(),
+        storage_name : Union[str, None]=None,
+        overwrite : bool=False,
+        verbose : bool =False,
 ):
     # Fail if overwrite would delete data
     if not overwrite and storage_name is not None and storage_name in Timesheet.Timesheet.list(storage_path):
@@ -86,7 +86,6 @@ def create(
             data_path=data_path,
             save=True,
         )
-    # TODO add some way to overwrite
     if verbose:
         click.echo(
             f"Created Timesheet instance named {storage_name} at {storage_path} "
@@ -107,7 +106,7 @@ def create(
 def append(
     storage_name: str,
     storage_path: str,
-    timestamps: list = [str],
+    timestamps: list = [],
     verbose: bool = False,
     date: Union[datetime.date, None] = None,
 ):
@@ -179,15 +178,14 @@ def summarize(
 #)
 @click.option("--data_path", help="Path to JSON output", default=None)
 @timesheet.command(name="jsonify", cls=locate_timesheet)
-def jsonify(storage_name, storage_path=utils.storage_path(), data_path=None):
+def jsonify(storage_name : str, storage_path : str =utils.storage_path(), data_path : Union[str, None]=None):
     instance = Timesheet.Timesheet.load(storage_name, storage_path)
     instance.write_json(path=data_path)
     return 0
 
-
 @click.option("--force", help="Delete without requiring user confirmation", default=False, is_flag = True)
 @timesheet.command(name="delete", cls=locate_timesheet)
-def delete(storage_name, storage_path, force=False):
+def delete(storage_name : str, storage_path : str, force : bool=False):
     Timesheet.Timesheet.delete(storage_name=storage_name, storage_path = storage_path, confirm = not force)
 
 
@@ -198,7 +196,7 @@ def delete(storage_name, storage_path, force=False):
     default=utils.storage_path(),
     help=constants.HELP_MAP["storage_path"],
 )
-def list(storage_path : str =utils.storage_path()) -> dict:
+def list(storage_path : str =utils.storage_path()) -> dict[str, Timesheet.Timesheet]:
     if not exists(storage_path):
         click.echo(f"{storage_path} does not exist")
         return {}
@@ -212,7 +210,7 @@ def list(storage_path : str =utils.storage_path()) -> dict:
 
 # https://click.palletsprojects.com/en/5.x/arguments/# Recommends "graceful no-op" if varaidic arg is empty, so `timesheets` is optional despite conceptually being mandatory
 @click.option("--timesheets", multiple = True,
-        help = "TODO", default = [])
+        help = "One or more timesheets, each preceded by this flag and in the format {storage_name}={storage_path}", default = [])
 @click.option("--storage_path", help = f"{constants.HELP_MAP['storage_path']} (assigned to output object)" , default = utils.storage_path())
 @click.option("--storage_name", help = f"{constants.HELP_MAP['storage_name']} (assigned to output object)", default = None)
 @click.option("--data_path", help = f"{constants.HELP_MAP['data_path']} (assigned to output object)", default = None)
