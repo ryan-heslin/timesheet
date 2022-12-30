@@ -483,6 +483,8 @@ class Timesheet:
         :param storage_path str: Path to :code:`shelve` file.
         :rtype "Timesheet": Instance loaded from the target name and path.
         """
+        if storage_name is None:
+            raise ValueError(f"Invalid storage name {storage_name!r}")
         return utils.use_shelve_file(
             storage_name=storage_name, func=lambda f: f[storage_name], path=storage_path
         )

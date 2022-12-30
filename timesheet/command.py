@@ -33,6 +33,8 @@ def timesheet():
 # Actually loads given timesheet; errors are
 # caught in Timesheet.load
 def locate_timesheet_impl(storage_name: str, storage_path: str):
+    if storage_name is None:
+        raise ValueError("Storage name must not be None")
     return Timesheet.Timesheet.load(
         storage_name=storage_name, storage_path=storage_path
     )
