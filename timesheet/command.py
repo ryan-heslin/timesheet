@@ -145,11 +145,13 @@ def summarize(
             storage_name=storage_name, storage_path=storage_path
         )
     if output_path is None:
-        if instance.output_path is None:
-            raise ValueError("Must specify an output path if instance has no default")
-        output_path = instance.output_path
+        raise ValueError("Must specify an output path")
+    #     if instance.output_path is None:
+    #
+    #     output_path = instance.output_path
 
 
+    # Try to guess output type from extension
     if output_type is None:
         output_type = splitext(output_path)[-1]
     try:

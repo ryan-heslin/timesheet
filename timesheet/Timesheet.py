@@ -179,7 +179,8 @@ class DayLog:
             [
                 f"A day log object for {__class__.yyyymmdd(self.date)}, created {self.creation_time}"
             ]
-            + [str(x) for x in self.timestamps]
+            + [ "\n" ] +
+            [str(x) for x in self.timestamps]
         )
 
     def copy(self) -> "DayLog":
@@ -381,6 +382,18 @@ class Timesheet:
         ) or utils.path_writeable(storage_path)):
             raise PermissionError(f"You lack write permission for {storage_path}")
         self._storage_path = storage_path
+
+    @property
+    def output_path(self) -> str:
+        return self._output_path
+
+    @output_path.setter
+    def output_path(self, output_path: str) -> None:
+        if not (output_path is None or
+            (os.path.exists(output_path) and utils.path_readable(output_path)
+        ) or utils.path_writeable(output_path)):
+            raise PermissionError(f"You lack write permission for {output_path}")
+        self._output_path = output_path
 
     @property
     def data_path(self) -> str:
