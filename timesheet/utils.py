@@ -179,6 +179,7 @@ def sum_DayLogs(
     :rtype Dict[str, float]: Dict pairing each datestamp within the aggregation
     period to the number of hours worked.
     """
+
     start_date = handle_date_arg(start_date)
     end_date = handle_date_arg(end_date)
     out = {}
@@ -194,7 +195,8 @@ def sum_DayLogs(
             min_date = min(this_date, min_date)
             max_date = max(this_date, max_date)
             key = datetime.date.strftime(this_date, aggregate.string_format.format)
-            out[key] = out.get(key, 0) + daylog.sum_time_intervals()
+            result = out.get(key, 0) + daylog.sum_time_intervals()
+            out[key] = 0 if  result == 0.0 and isinstance(result, float) else result
     cur_date = min_date
 
     # Fill in omitted dates

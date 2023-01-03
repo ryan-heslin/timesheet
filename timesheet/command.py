@@ -71,7 +71,7 @@ def create(
 ):
     # Fail if overwrite would delete data
     if not overwrite and storage_name is not None and storage_name in Timesheet.Timesheet.list(storage_path):
-        click.echo(f"{storage_name} is already in use, and overwrite = False")
+        click.echo(f"Storage name {storage_name!r} is already in use, and overwrite = False")
         return 1
     if json_source is None:
         Timesheet.Timesheet(
@@ -202,7 +202,7 @@ def delete(storage_name : str, storage_path : str, force : bool=False):
 )
 def list(storage_path : str =utils.storage_path()) -> dict[str, Timesheet.Timesheet]:
     if not exists(storage_path):
-        click.echo(f"{storage_path} does not exist")
+        click.echo(f"{storage_path!r} does not exist")
         return {}
     f = utils.use_shelve_file(
         func=lambda f: {k: v for k, v in f.items() if isinstance(v, Timesheet.Timesheet)}, path=storage_path
