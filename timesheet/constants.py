@@ -6,7 +6,7 @@ HELP_MAP = {
     "data_path" : "Directory to which to write JSON or CSV summaries of this instance",
     "json_path": "Default path to write JSON representation of this instance",
     "storage_name": "Name identifying instance in shelve dict",
-    "timestamps": "Sequence of ISO-formatted timestamps in chronological order to enter in the created object",
+    "timestamps": "Sequence of ISO-formatted timestamps in chronological order to store in the created object",
     "date": "Target date, as a string in ISO format (e.g., 2022-06-27)",
     "confirm": "Require user confirmation before executing the command",
     "verbose": "Print a description of command's outcome",
