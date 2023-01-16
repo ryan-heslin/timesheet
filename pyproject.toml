@@ -56,4 +56,4 @@ build-backend = "poetry.core.masonry.api"
 timesheet = 'timesheet.command:timesheet'
 
 [tool.poetry.extras]
-docs = ["Sphinx", "sphinx-rtd-theme"]
+docs = ["Sphinx", "sphinx-rtd-theme", "sphinxcontrib-applehelp"]
