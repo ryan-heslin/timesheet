@@ -11,6 +11,15 @@ Welcome to timesheet's documentation!
    :caption: Contents:
 
 
+.. automodule:: timesheet.utils.utils
+   :members:
+
+.. automodule:: timesheet.classes.Timesheet
+   :members:
+
+.. automodule:: timesheet.classes.TimeAggregate
+   :members:
+
 
 Indices and tables
 ==================

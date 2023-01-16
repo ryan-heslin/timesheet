@@ -10,7 +10,9 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath("../timesheet"))
+sys.path.insert(0, os.path.abspath(".."))
+# sys.path.insert(0, os.path.abspath("../timesheet/classes/"))
+# sys.path.insert(0, os.path.abspath("../timesheet/utils/"))
 
 
 # -- Project information -----------------------------------------------------
