@@ -289,7 +289,7 @@ name = "sphinxcontrib.applehelp"
 version = "1.0.3"
 description = "sphinxcontrib-applehelp is a Sphinx extension which outputs Apple help books"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.8"
 
 [package.extras]
@@ -382,7 +382,7 @@ docs = ["Sphinx", "sphinx-rtd-theme"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "a87b399b2e27a84e4446fefc49060f79351b64979db83520d6e8c68f73c78ecf"
+content-hash = "7a50f670b34a77bfa8c968c35922ffde70c7046be44b610a6b9b19fb3c13d409"
 
 [metadata.files]
 alabaster = [
