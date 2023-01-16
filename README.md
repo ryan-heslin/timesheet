@@ -80,3 +80,9 @@ Finally, you can delete timesheets like so:
 ```{ch}
 timesheet delete --storage_name my_timesheet
 ```
+
+
+# Acknowledgements
+
+Docs built with [Sphinx](https://www.sphinx-doc.org/).
+Deployment action taken from [https://tomasfarias.dev/posts/sphinx-docs-with-poetry-and-github-pages/#specifying-the-dependencies-in-poetry](https://tomasfarias.dev/posts/sphinx-docs-with-poetry-and-github-pages/#specifying-the-dependencies-in-poetry).

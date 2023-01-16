@@ -18,20 +18,20 @@ from typing import Union
 
 import click
 
-from timesheet import constants
-from timesheet import TimeAggregate
-from timesheet import Timesheet
+from ..classes import TimeAggregate
+from ..classes import Timesheet
 
 
 # From https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
 def json_serialize(x : Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]) -> Union[str, "Timesheet.time_list"]:
     """Convert datetime objects to ISO format suitable for JSON serialization
-    :param x Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]: an object
-    of these types
 
-
-    :rtype If :code:`x`  is a :code:`Timesheet` instance, its :code:`timestamps`
+    :param x: an object of one of these types
+    :type x: Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]
+    :return: If :code:`x`  is a :code:`Timesheet` instance, its :code:`timestamps`
     attribute; otherwise, an ISO-formatted string.
+    :rtype:  Union[str, "Timesheet.time_list"]
+
     """
     if isinstance(x, (datetime.datetime, datetime.time)):
         return x.isoformat()
@@ -41,9 +41,13 @@ def json_serialize(x : Union[datetime.datetime, datetime.time, "Timesheet.DayLog
 
 def path_checker(permissions : int) -> Callable:
     """Create function to check whether a user has specified permissions to use a path
-    permissions int: One or more :code:`os` permission codes to check for (e.g., :code:`os.W_OK | os.X_OK` )
-    :rtype Callable: Function with :code:`bool` return type that checks whether
+
+    :param permissions: One or more :code:`os` permission codes to check for (e.g., :code:`os.W_OK | os.X_OK` )
+    :type permissions: int
+
+    :return: Function with :code:`bool` return type that checks whether
     the user has the given permissions for some path
+    :rtype: Callable
     """
     def inner(path : str):
         return os.access(path, permissions)
@@ -53,24 +57,31 @@ path_readable = path_checker((os.R_OK))
 path_writeable = path_checker(os.W_OK | os.X_OK)
 
 def date_parser(di : Dict[str, str]) -> Dict[str, "Timesheet.DayLog"]:
-    """Parses a JSON where keys are ISO-formatted dates and values are lists of ISO-formatted times to be converted to DiffTime objects
+    """Parse a JSON where keys are ISO-formatted dates and values are lists of ISO-formatted times to be converted to DiffTime objects
 
     :param di: Dict of timestamp strings in any ISO format
-    :rtype Dict[str, "Timesheet.DayLog"]: Dict of :code:`DayLog` objects constructed
+    :type di: Dict[str, str]
+    :return: Dict of :code:`DayLog` objects constructed
     from timestamps
+    :rtype: Dict[str, "Timesheet.DayLog"]
+
     """
+
     out = {}
-    for k in di:
+    for k, v in di.items():
         date = datetime.date.fromisoformat(k)
-        timestamps = [Timesheet.DiffTime.fromisoformat(ts) for ts in di[k]]
+        timestamps = [Timesheet.DiffTime.fromisoformat(ts) for ts in v]
         out[k] = Timesheet.DayLog(date=date, timestamps=timestamps)
     return out
 
 
 def validate_datestamps(datestamps: Iterable[str]) -> bool:
     """Confirms whether all datestamps in an iterable parse in ISO format
+
     :param datestamps Iterable[str]: Iterable of date strings whose formats to check
-    :rtype bool: :code:`bool` indicating whether all datestamps were valid
+    :type datestamps: Iterable[str]
+    :return: :code:`bool` indicating whether all datestamps were valid
+    :rtype: bool
     """
     try:
         return all(
@@ -83,7 +94,9 @@ def storage_path() -> str:
     """
     Returns the storage path known to :code:`timesheet` - the :code:`TIMESHEET_DIR`
     environment variable if set, otherwise the path :code:`"~/.timesheet/timesheets"`.
-    :rtype str: The path found.
+
+    :return: The path found.
+    :rtype: str
     """
     return getenv("TIMESHEET_DIR", expanduser("~/.timesheet/timesheets"))
 
@@ -92,10 +105,13 @@ def next_number(stem : str, names : List[str]) -> int:
     """
     Given a list of strings and a stem, finds all that start with the stem and
     end with digits and returns the highest such number plus one.
-    :param stem: str Filename to check for
-    :param names: List[str] Strings to check for any starting with the stem and ending
+    :param stem: Filename to check for
+    :type stem: str
+    :param names: Strings to check for any starting with the stem and ending
+    :type names: List[str]
     with a  number
-    :rtype int: The next sequential number, starting from 1.
+    :return: The next sequential number, starting from 1.
+    :rtype int:
     """
     if names == []:
         return 1
@@ -116,12 +132,17 @@ def use_shelve_file(
         confirm_prompt: Union[str, None] = None
 ) -> Any:
     """Apply an arbitrary function of one argument to the object bound to a name in a given shelve file
-    :param func: Callable One-argument function to apply to item
-    :param storage_name: str Name of :code:`shelve` file to open
+    :param func: One-argument function to apply to item
+    :type func: Callable
+    :param storage_name: Name of :code:`shelve` file to open
+    :type storage_name: str , optional
     :param path: str Path to :code:`shelve` storage file
-    :param confirm_prompt: str String giving prompt to show the user before invoking
+    :type path: str, optional
+    :param confirm_prompt: String giving prompt to show the user before invoking
+    :type confirm_prompt: str, optional
     the function. If :code:`None` (default), ignored
-    :rtype Any: The result of calling the function
+    :return: The result of calling the function
+    :rtype: Any
     """
     path = f"{storage_path()}" if path is None else path
     if not exists(path):
@@ -145,7 +166,8 @@ class StandardCommandFactory:
     def configure(self, commands : Union[List, None] = None) -> None:
         """
         Add commands to an instance
-        :param commands: List List of commands to add
+        :param commands: List of commands to add
+        :type commands: Union[List, None]
         """
         commands = [] if commands is None else commands
         self.commands = commands
@@ -163,7 +185,7 @@ class StandardCommandFactory:
 
 
 def sum_DayLogs(
-    record: dict,
+    record: Dict[str, Timesheet.DayLog],
     start_date: Union[datetime.date, str] = datetime.date.min,
     end_date: Union[datetime.date, str] = datetime.date.max,
     aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
@@ -172,12 +194,19 @@ def sum_DayLogs(
     Given a dict of :code:`DayLog` objects, summarizes hours spent at the
     specified level of aggregation.
 
-    :param start_date: Union[datetime.date, str] Earliest date to include (inclusive)
-    :param end_date: Union[datetime.date, str] Latest date to include (inclusive)
-    :param aggregate: TimeAggregate.TimeAggregate Level of aggregation to use.
+    :param record:  Mapping of dates and DayLog
+    :type  record: Dict[str, Timesheet.DayLog]
+    objects containing timestamps
+    :param start_date:  Earliest date to include (inclusive)
+    :type  start_date: Union[datetime.date, str], optional
+    :param end_date:  Latest date to include (inclusive)
+    :type  end_date: Union[datetime.date, str], optional
+    :param aggregate: Level of aggregation to use.
     Defaults to days; weeks, months, and years are also built-in.
-    :rtype Dict[str, float]: Dict pairing each datestamp within the aggregation
+    :type aggregate: TimeAggregate.TimeAggregate , optional
+    :return:  Dict pairing each datestamp within the aggregation
     period to the number of hours worked.
+    :rtype: Dict[str, float]
     """
 
     start_date = handle_date_arg(start_date)
@@ -212,7 +241,10 @@ def sum_DayLogs(
 
 # Credit https://stackoverflow.com/questions/2356399/tell-if-python-is-in-interactive-mode
 def is_interactive() -> bool:
-    """Returns whether Python is running in interactive mode"""
+    """
+    :return: :code:`True` if Python is running in interactive mode, :code:`False` otherwise
+    :rtype: bool
+    """
     return hasattr(sys, "ps1")
 
 
@@ -223,12 +255,16 @@ def handle_date_arg(
     Converts a string to :code:`datetime.date` and optionally raises an error if
     it is :code:`None`
 
-    :param date: Union[datetime.date, str, None] Argument to process
-    :param default: Any Default value to return if :code:`allow_None = True`
+    :param date:  Argument to process
+    :type  date: Union[datetime.date, str, None]
+    :param default: Default value to return if :code:`allow_None = True`
+    :type  default: Any, optional
     and :code:`date is None`.
     :allow_None: bool Logical determining whether to substitute a default if
     :code:`date is None` instead of raising an error.
-    :rtype Any: The value returned by the above logic
+    :type allow_None: bool, optional
+    :return: The value returned by the above logic
+    :rtype: Any
     """
 
     if isinstance(date, str):
@@ -240,13 +276,15 @@ def handle_date_arg(
             raise ValueError(f"{None!r} not allowed as a date value")
     return date
 
-# Replace (or set) a path's extension
 def add_extension(path : str, extension : str) -> str:
     """Replaces or sets a path's extension
-    :param path: str Some file path, optionally with leading directories
-    :param extension: str Extension to add
 
-    :rtype str: The path with the extension added
+    :param path: Some file path, optionally with leading directories
+    :type path: str
+    :param extension: Extension to add
+    :type extension: str
+    :return: The path with the extension added
+    :rtype: str
     """
     stem, basename = split(path)
     return join(stem, splitext(basename)[0]) + extension

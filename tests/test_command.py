@@ -1,13 +1,13 @@
-import json
 import csv
-import os
-from os.path import exists
-from copy import deepcopy
-import re
 import datetime
+import json
+import os
+import re
 import shelve
+from copy import deepcopy
+from os.path import exists
 
-from timesheet import Timesheet
+from timesheet.classes import Timesheet
 
 ts = "./.venv/bin/timesheet"
 date = datetime.date.today().isoformat()

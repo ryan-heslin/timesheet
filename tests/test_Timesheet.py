@@ -12,9 +12,9 @@ from os.path import split
 
 import pytest
 
-from timesheet import constants
-from timesheet import TimeAggregate
-from timesheet import utils
+from timesheet.classes import TimeAggregate
+from timesheet.utils import constants
+from timesheet.utils import utils
 
 test_date = "2022-06-19"
 test_datestamp = datetime.date.fromisoformat(test_date)

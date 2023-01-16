@@ -6,30 +6,33 @@ from typing import List
 from typing import Tuple
 from typing import Union
 
-from timesheet import constants
+from ..utils import constants
 
 
 class TimeAggregate:
     """
     Represents a unit of time, such as a day or month, used in computing
     aggregates
+
+    :param decrement: Function of one argument that reduces the
+    aggregate by one unit.
+    :type decrement: Callable
+    :param increment: Function of one argument that increases the
+    :type increment: Callable
+    :param floor: Function of one argument that rounds the
+    aggregate to the date of the next lowest unit (e.g., converting a date
+                                                   to the first day of the
+                                                   month for a month aggregate).
+    :type floor: Callable
+    :param string_format: :code:`DateFormat` instance representing
+    the fields contained in this instance
+    :type string_format: DateFormat
+    :param name: Name for the created instance
+    :type name: str
     """
     def __init__(
             self, decrement : Callable, increment: Callable,  floor: Callable, string_format: "DateFormat", name: str
     ) -> None:
-        """
-        :param decrement Callable: Function of one argument that reduces the
-        aggregate by one unit.
-        :param increment Callable: Function of one argument that increases the
-        :param floor Callable: Function of one argument that rounds the
-        aggregate to the date of the next lowest unit (e.g., converting a date
-                                                       to the first day of the
-                                                       month for a month aggregate).
-        :param string_format DateFormat: :code:`DateFormat` instance representing
-        the fields contained in this instance
-        :param name str: Name for the created instance
-
-        """
         self.name = name
         self.string_format = string_format
         self.decrement  = decrement
@@ -41,18 +44,18 @@ class DateFormat():
     Defines a date format using ISO symbols, with support for separating into
     individual components
 
+    :param format: String containing ISO date formatting symbols separated
+    by :code:`separator`, e.g. '%Y-%m-%d'.
+    :type format: str
+    :param components:  Names for each date component, e.g. 'year', 'month', 'day'.
+    :type components: Tuple[str, ...]
+    :param separator:  String separating each date component. It must be present
+    in :code:`format`. If None, no splitting is done and one component is assumed.
+    Default '-'.
+    :type separator: Union[str, None], optional
     """
 
     def __init__(self, format : str, components : Tuple[str, ...], separator : Union[str, None] = "-") ->  None:
-        """
-        :param format str String containing ISO date formatting symbols separated
-        by :code:`separator`, e.g. '%Y-%m-%d'.
-        :param components Tuple[str, ...] Names for each date component, e.g. 'year', 'month', 'day'
-        :separator Union[str, None] String separating each date component. It must be present
-        in :code:`format`. If None, no splitting is done and one component is assumed.
-        Default '-'.
-
-        """
         if not ((none_sep := separator is None) or separator in format):
             raise ValueError(f"Separator {separator} not used in format {format}")
         # if (n_split := len(format.split(separator))) != (n_components := len(components) + 1) and not none_sep:
@@ -132,6 +135,7 @@ day_format = DateFormat(format = "%Y-%m-%d", components = ( "year", "month", "da
 week_format = DateFormat(format = "%Y-%W", components = ( "year", "week" ))
 month_format = DateFormat(format = "%Y-%-m", components = ( "year", "month" ))
 year_format = DateFormat(format = "%Y", components=( "year", ), separator = None)
+
 # Built-in aggregation time spans
 Day = TimeAggregate(decrement_day, increment_day , floor_day, day_format, "day")
 Week = TimeAggregate(decrement_week, increment_week, floor_week, week_format, "week")

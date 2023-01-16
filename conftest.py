@@ -1,16 +1,17 @@
 import datetime
 import json
 import os
-from os.path import expanduser
-from tempfile import TemporaryDirectory
 import re
 import subprocess
-from typing import Generator, Dict
+from os.path import expanduser
+from tempfile import TemporaryDirectory
+from typing import Dict
+from typing import Generator
 
 import pytest
 
-from timesheet import Timesheet
-from timesheet import constants
+from timesheet.classes import Timesheet
+from timesheet.utils import constants
 
 temp_dir = TemporaryDirectory()
 

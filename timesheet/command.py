@@ -7,10 +7,10 @@ from typing import Union
 
 import click
 
-from timesheet import constants
-from timesheet import TimeAggregate
-from timesheet import Timesheet
-from timesheet import utils
+from .classes import TimeAggregate
+from .classes import Timesheet
+from .utils import constants
+from .utils import utils
 # Click class for shared arguments
 # https://stackoverflow.com/questions/40182157/shared-options-and-flags-between-commands
 

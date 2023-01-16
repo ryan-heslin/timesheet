@@ -17,15 +17,27 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
-from timesheet import constants
-from timesheet import TimeAggregate
-from timesheet import utils
+from . import TimeAggregate
+from ..utils import utils
 
 time_list = Union[List[datetime.datetime], List[datetime.time], List["DiffTime"]]
 
 
 class DiffTime(datetime.time):
-    """Subclass of :code:`datetime.time` intended to represent times without reference to a particular day. It supports subtraction by creating a dummy :code:`datetime.time` attribute that contains hour, minute, second, and microsecond components"""
+    """Subclass of :code:`datetime.time` intended to represent times without reference to a particular day. It supports subtraction by creating a dummy :code:`datetime.time` attribute that contains hour, minute, second, and microsecond components
+    :param hour int: Hour value in :code:`range(24)`.
+    :type value: int, optional
+    :param minute: Minute value in :code:`range(60)`.
+    :type minute: int, optional
+    :param second: Second value in :code:`range(60)`.
+    :type second: int, optional
+    :param microsecond: Microsecond value in :code:`range(1000000)`.
+    :type microsecond: int, optional
+    :param tzinfo: :code:`tzinfo` instance, or :code:`None`
+    :type tzinfo: Union[datetime.tzinfo, None], optional
+    :param fold int: 0 or 1 indicating whether to distinguish "wall times"
+    :type fold: int, optional
+    """
 
     def __init__(
         self,
@@ -37,16 +49,6 @@ class DiffTime(datetime.time):
         *,
         fold: int = 0,
     ):
-        """
-        Initialize a DiffTime object. This subclass of :code:`datetime.datetime` creates a dummy `datetime.time` object
-
-        :param hour int: Hour value in :code:`range(24)`
-        :param minute int: Minute value in :code:`range(60)`
-        :param second int: Second value in :code:`range(60)`
-        :param microsecond int: Microsecond value in :code:`range(1000000)`
-        :param tzinfo: :code:`tzinfo` instance, or :code:`None`
-        :param fold int: 0 or 1 indicating whether to distinguish "wall times"
-        """
         super().__init__()
         self._date_impl = self._dummy_date(self)
 
@@ -57,8 +59,10 @@ class DiffTime(datetime.time):
         """
         Alternate constructor that converts an existing :code:`datetime.time` or :code:`datetime.datetime` instance to :code:`DiffTime`
 
-        :param time Union["DiffTime", datetime.time, datetime.datetime]: :code:`datetime.time` or :code:`datetime.datetime` instance
-        :rtype "DiffTime": :code:`DiffTime` instance
+        :param time: :code:`datetime.time` or :code:`datetime.datetime` instance
+        :type time: Union["DiffTime", datetime.time, datetime.datetime]
+        :return:  :code:`DiffTime` instance
+        :rtype: "DiffTime"
         """
         instance = cls.__new__(
             cls, time.hour, time.minute, time.second, time.microsecond
@@ -80,23 +84,45 @@ class DiffTime(datetime.time):
         )
 
     def __sub__(self, other: "DiffTime") -> datetime.timedelta:
-        """Return timedelta object with difference"""
+        """Return timedelta object with difference of this and another
+        "DiffTime" instance
+
+        :param other: Another "DiffTime" instance.
+        :type other: "DiffTime".
+        :return: Difference of this instance and :code:`other`.
+        :rtype: "DiffTime".
+        """
         return self._date_impl - __class__._dummy_date(other)
 
     @property
     @lru_cache()
     def min(self):
-        """Lowest possible DiffTime object"""
+        """Returns lowest possible DiffTime object
+        :return: "DiffTime" with all fields at minimum.
+        :rtype: "DiffTime".
+        """
         return DiffTime(hour=0, second=0, minute=0, microsecond=0)
 
     @property
     @lru_cache()
     def max(self):
-        """Greatest possible DiffTime object"""
+        """Returns greatest possible DiffTime object
+        :return: "DiffTime" with all fields at maximum.
+        :rtype: "DiffTime"
+        """
         return DiffTime(hour=23, minute=59, second=59, microsecond=999999)
 
 
 class DayLog:
+    """
+    This class records a series of timestamps within the
+    span of a specified date. It can form intervals from these timestamps and compute their total sum.
+
+    :param date: Date the instance should refer to.
+    :type date: datetime.date
+    :param timestamps: Optional list of timestamps to record. Must be sorted in ascending order and contain no duplicates.
+    :type timestamps: time_list
+    """
 
     # Used to convert time differences to hours
     hour_conversions = {"days": 24, "seconds": 1 / 3600, "microseconds": 1 / 3.6e9}
@@ -104,13 +130,6 @@ class DayLog:
     def __init__(
         self, date: Union[datetime.date, str, None] = None, timestamps: Union[time_list, None] = None
     ) -> None:
-        """
-        Initialize DayLog instance. This class records a series of timestamps within the
-        span of a specified date. It can form intervals from these timestamps and compute their total sum.
-
-        :param date datetime.date: Date the instance should refer to
-        :param timestamps time_list: Optional list of timestamps to record. Must be sorted in ascending order and contain no duplicates
-        """
 
         # If, no timestamps provided, don't automatically supply any
         timestamps = [] if timestamps is None else timestamps
@@ -125,8 +144,10 @@ class DayLog:
         """
         Determines whether one instance and another have identical timestamp sequences.
 
-        :param other "DayLog": A :code:`DayLog` instance
-        :rtype bool: :code:`True` if the sequences are identical, :code:`False` otherwise.
+        :param other: A :code:`DayLog` instance
+        :type other: "DayLog"
+        :return:  :code:`True` if the sequences are identical, :code:`False` otherwise.
+        :rtype: bool
         """
         return self.timestamps == other.timestamps
 
@@ -135,8 +156,9 @@ class DayLog:
         Concatenate additional timestamps to those stored in the calling instance. Added timestamps must all be later than the last timestamp stored in the
         caller and sorted in ascending order.
 
-        :param timestamps time_list: List containing elements of class :code:`datetime.datetime`, :code:`datetime.time`, or :code:`Timesheet.DiffTime`.
-        :rtype None:
+        :param timestamps: List containing elements of class :code:`datetime.datetime`, :code:`datetime.time`, or :code:`Timesheet.DiffTime`.
+        :type timestamps: time_list
+        :rtype: None
         :raises ValueError: If any member of :code:`timestamps` is later than the caller's latest timestamp and/or :code:`timestamps` is not sorted in ascending order.
         """
         converted = (
@@ -161,10 +183,12 @@ class DayLog:
     @staticmethod
     def yyyymmdd(timestamp: Union[datetime.datetime, datetime.date, None] = None) -> str:
         """
-        Format a date YYYY-MM-DD
+        Format a date YYYY-MM-DD.
 
-        :param timestamp Union[datetime.datetime,  None]: :code:`datetime.datetime` instance
-        :rtype str: The formatted date
+        :param timestamp: :code:`datetime.datetime` instance
+        :type timestamp: Union[datetime.datetime,  None]
+        :return:  The formatted date.
+        :rtype str:
         """
         date_value = datetime.datetime.today() if timestamp is None else timestamp
         parser = (
@@ -184,8 +208,10 @@ class DayLog:
         )
 
     def copy(self) -> "DayLog":
-        """Create a copy with identical data
-        :rtype DayLog: Copy with identical data
+        """Create a copy of the object with identical data
+
+        :return: Copy of this instance with identical data.
+        :rtype DayLog:
         """
         return __class__(date = self.date, timestamps = self.timestamps.copy())
 
@@ -194,9 +220,11 @@ class DayLog:
         Combine this :code:`DayLog` instance with another by creating a new
         instance with concatenated timestamps. Fails if the two instances do not describe the same date or the timstamps are incompatible.
 
-        :param other "DayLog": Another :code:`DayLog` instance. It must refer to the same date, and its timestamps, if they exist, must meet the requirements for :code:`DayLog.concat_timestamps`
+        :param other: Another :code:`DayLog` instance. It must refer to the same date, and its timestamps, if they exist, must meet the requirements for :code:`DayLog.concat_timestamps`
+        :type other: "DayLog"
+        :return: A new instance with the concatenated timestamps
+        :rtype: DayLog
         :raises ValueError: If any of the above conditions are not met
-        :rtype DayLog: A new instance with the concatenated timestamps
         """
         if self.date != other.date:
             raise ValueError(
@@ -228,8 +256,10 @@ class DayLog:
         """
         Converts a :code:`datetime.timedelta` object to its value in hours.
 
-        :param delta datetime.timedelta: :code:`datetime.timedelta` instance
-        :rtype float: Value of the instance in hours
+        :param delta: :code:`datetime.timedelta` instance
+        :type delta: datetime.timedelta
+        :return: Value of the instance in hours
+        :rtype: float:
         """
         return sum(
             conversion * getattr(delta, unit)
@@ -240,7 +270,8 @@ class DayLog:
         """
         Sum this instance's time intervals. Returns the total value of the time contained in the intervals in hours. If there is an odd number of timestamps, leaving an unbounded interval, the last is ignored with a warning.
 
-        :rtype float: Total time spanned by all intervals stored in this instance, or 0 if fewer than two are recorded.
+        :return:  Total time spanned by all intervals stored in this instance, or 0 if fewer than two are recorded.
+        :rtype: float
         """
         n_timestamps = len(self)
 
@@ -261,9 +292,18 @@ class DayLog:
 
     @staticmethod
     def _validate_timestamp_sequence(
-        timestamps: list, raise_exception: bool = True
+        timestamps: List[datetime.time], raise_exception: bool = True
     ) -> bool:
-        """Confirm all timestamps are in increasing order"""
+        """Confirm all timestamps are in increasing order
+        :param timestamps: List of timestamps to verify order for.
+        :type timestamps: List[datetime.time]
+
+        :raise_exception: Flag indicating whether to raise an exception if :code:`timestamps`
+        is out of order.
+        :type raise_exception: bool
+        :rtype: bool
+        :return: `True` if the timestamps are in sorted order, `False` otherwise.
+        """
         out = all(timestamps[i + 1] > timestamps[i] for i in range(len(timestamps) - 1))
         if not out and raise_exception:
             raise ValueError("Timestamps not all in chronological order")
@@ -274,8 +314,10 @@ class DayLog:
         """
         Convert a list of timestamps to :code:`DiffTime` instances
 
-        :param timestamps time_list: List whose members are all instances of :code:`datetime.datetime`, :code:`datetime.time`, or :code:`DiffTime`
-        :rtype List[DiffTime] : List of :code:`DiffTime` instances
+        :param timestamps: List whose members are all instances of :code:`datetime.datetime`, :code:`datetime.time`, or :code:`DiffTime`
+        :type timestamps: time_list
+        :return:  List of :code:`DiffTime` instances
+        :rtype: List[DiffTime]
         """
         return [
             DiffTime.from_time(x) if not isinstance(x, DiffTime) else x
@@ -284,7 +326,18 @@ class DayLog:
 
 
 class Timesheet:
-    """Contains a set of DayLog objects mapped to dates and implements methods for summarizing and aggregating hours worked across different units of time, such as days or months"""
+    """Contains a set of DayLog objects mapped to dates and implements methods for summarizing and aggregating hours worked across different units of time, such as days or months
+
+    :param data: Optional dict one mapping or more :code:`DayLog`  instances to :code:`str` keys, which must be recognizable as ISO-formatted dates.
+    :type data: Dict[str, DayLog]
+    :param storage_path: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
+    :type storage_path: Union[str, None], optional
+    :param storage_name: Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
+    :type storage_name: Union[str, None], optional
+    :param save: Optional bool determining whether to save on instance creation.
+    :type save: bool, optional
+    :param data_path str:
+    """
 
     def __init__(
         self,
@@ -295,16 +348,6 @@ class Timesheet:
         data_path: Union[str, None] = None,
         output_path: Union[str, None] = None
     ) -> None:
-        """
-        Initialize a :code:`Timesheet` instance.
-
-        :param data Dict[str, DayLog]: Optional dict one mapping or more :code:`DayLog`  instances to :code:`str` keys, which must be recognizable as ISO-formatted dates
-        :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
-        :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
-        :param save bool: Optional bool determining whether to save on instance creation
-        :param data_path str:
-        :rtype None:
-        """
 
         # If no initial data is supplied, default to empty DayLog dated today
         self._constructor(
@@ -416,8 +459,10 @@ class Timesheet:
         """
         Determine whether two instances contain the same data.
 
-        :param other "Timesheet": Another :code:`Timesheet` instance.
-        :rtype bool: :code:`True` if the data are identical, :code:`False` otherwise
+        :param other: Another :code:`Timesheet` instance.
+        :type other: "Timesheet"
+        :return: :code:`True` if the data are identical, :code:`False` otherwise
+        :rtype: bool
         """
         # Not identical if keys not all equal
         if not (own_keys := sorted(self.record.keys())) == sorted(other.record.keys()):
@@ -439,11 +484,16 @@ class Timesheet:
         """
         Save this instance to a :code:`shelve` object at a specified path, using a specified name.
 
-        :param path str: Optional path to the :code:`shelve` file. Default to "$HOME/.timesheet/timesheets".
-        :param storage_name str: Optional name for this instance in :code:`shelve` storage. Generated automatically if omitted.
-        :param overwrite bool: Optional :code:`bool` indicating whether to overwrite an existing instance that shares :code:`storage_name`. Default :code:`False`
-        :param create_directory bool: Optional logical indivating whether to create the directory containing :code:`storage_path` if it does not exist. Default :code:`False`.
-        :rtype Timesheet: Copy of the instance
+        :param path: Optional path to the :code:`shelve` file. Default to "$HOME/.timesheet/timesheets".
+        :type path: str, optional
+        :param storage_name: Optional name for this instance in :code:`shelve` storage. Generated automatically if omitted.
+        :type storage_name: str, optional
+        :param overwrite: Optional :code:`bool` indicating whether to overwrite an existing instance that shares :code:`storage_name`. Default :code:`False`
+        :type overwrite: bool, optional
+        :param create_directory: Optional logical indivating whether to create the directory containing :code:`storage_path` if it does not exist. Default :code:`False`.
+        :type create_directory: bool, optional
+        :return: Copy of the instance.
+        :rtype: Timesheet
         """
         storage_name = self._storage_name if storage_name is None else storage_name
         path = self._storage_path if path is None else path
@@ -482,8 +532,11 @@ class Timesheet:
 
     def copy(self, storage_name = None) -> "Timesheet":
         """Copy a :code:`Timesheet` instance
-        :param storage_name: Name to assign to copy in :code:`shelve` storage
-        :rtype Timesheet: The newly created copy
+
+        :param storage_name:code:`shelve` storage
+        :type storage_name::: Name to assign to copy in
+        :return: The newly created copy
+        :rtype: Timesheet
         """
         return __class__(data = self.record, storage_path = self.storage_path, storage_name=storage_name, data_path=self.data_path, save = False)
 
@@ -492,9 +545,12 @@ class Timesheet:
         """
         Load a :code:`Timesheet` instance from storage.
 
-        :param storage_name str: Name of the target instance in :code:`shelve` storage.
-        :param storage_path str: Path to :code:`shelve` file.
-        :rtype "Timesheet": Instance loaded from the target name and path.
+        :param storage_name: Name of the target instance in :code:`shelve` storage.
+        :type storage_name: str
+        :param storage_path: Path to :code:`shelve` file.
+        :type storage_path: str
+        :return: Instance loaded from the target name and path.
+        :rtype: "Timesheet"
         """
         if storage_name is None:
             raise ValueError(f"Invalid storage name {storage_name!r}")
@@ -507,10 +563,12 @@ class Timesheet:
         """
         Delete the :code:`Timesheet` instance identified by :code:`storage_path` and :code:`storage_name`.
 
-        :param storage_name str: String identifying the target instance in :code:`shelve` storage.
-        :param storage_path str:
-        :param confirm bool: Optional :code:`bool`indicating whether to ask for confirmation before deletion (if run interactively) or abort (if not). Default :code:`True`
-        :rtype None:
+        :param storage_name: String identifying the target instance in :code:`shelve` storage.
+        :type storage_name: str
+        :param storage_path:
+        :type storage_path: str
+        :param confirm: Optional :code:`bool`indicating whether to ask for confirmation before deletion (if run interactively) or abort (if not). Default :code:`True`
+        :type confirm: bool, optional
         """
         confirm_prompt = (
             "Press enter to confirm deletion, any other key to abort"
@@ -529,8 +587,11 @@ class Timesheet:
         """
         List the names of :code:`Timesheet` instances stored at a particular path
 
-        :param path str: Path to the :code:`shelve` file to list
-        :rtype List[str]: List of keys to the :code:`shelve` file chosen.
+        :param path: Path to the :code:`shelve` file to list. Defaults to
+        the default storage path.
+        :type path: Union[str, None], optional
+        :return: List of keys to the :code:`shelve` file chosen.
+        :rtype: List[str]
         """
         path = utils.storage_path() if path is None else path
         if not exists(path) and isdir(path):
@@ -548,8 +609,10 @@ class Timesheet:
         timestamps: Union[List[datetime.datetime], None] = None,
     ) -> "Timesheet":
         """Concatenate additional timestamps for a given date, or create a new entry if none exists
-        :param date: Union[datetime.date, str] Date whose data will be combined with the new timestmaps
-        :param timestamps: List[datetime.datetime] Timestamps to append
+        :param date:  Date whose data will be combined with the new timestmaps
+        :type date: Union[datetime.date, str, None], optional
+        :param timestamps:  Timestamps to append.
+        :type timestamps: Union[List[datetime.datetime, None]], optional
         :rtype Timesheet: Copy of the modified instance
         """
         date = datetime.datetime.today() if date is None else date
@@ -584,12 +647,17 @@ class Timesheet:
         """
         Initialize a :code:`Timesheet` instance.
 
-        :param data Dict[str, DayLog]: Optional dict one mapping or more :code:`DayLog`  instances to :code:`str` keys, which must be recognizable as ISO-formatted dates
-        :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
-        :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
-        :param save bool: Optional bool determining whether to save on instance creation
+        :param other: "Timesheet" instance to merge with.
+        :type other: "Timesheet"
+        :param storage_path: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
+        :type storage_path: Union[str, None], optional
+        :param storage_name: Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
+        :type storage_name: Union[str, None], optional
+        :param save: Optional bool determining whether to save on instance creation
+        :type save: bool, optional
         :param data_path str:
-        :rtype None:
+        :return: The "Timesheet" instance created by the merge, if it succeeded.
+        :rtype: "Timesheet"
         """
         # Find common keys
         # If none, just merge dicts
@@ -661,9 +729,12 @@ class Timesheet:
         """
         Write an instance's day data to JSON. This makes it possible to copy the instance by caling `Timesheet.from_json` on the path to the created JSON.
 
-        :param path str: Optional path to output JSON. Defaults to the instance's :code:`data_path` attribute, or a generated unique name if it is :code:`None`.
-        :make_directory: bool Whether to create directory to contain :code:`path` if it does not already exist
-        :rtype Timesheet: Copy of the modified instance
+        :param path: Optional path to output JSON. Defaults to the instance's :code:`data_path` attribute, or a generated unique name if it is :code:`None`.
+        :type path: Union[str, None], optional
+        :make_directory: Whether to create directory to contain :code:`path` if it does not already exist.
+        :type make_directory: bool, optional
+        :return:  Copy of the modified instance
+        :rtype: Timesheet
         """
         storage_dir, path = self._choose_path(path = path, default = self._data_path, extension = "json")
             # If authorized, create target directory if it does not exist.
@@ -685,7 +756,18 @@ class Timesheet:
         end_date: Union[datetime.date, str] = datetime.date.max,
         aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
     ) -> Dict[str, float]:
-        """Sum hours worked for a given week"""
+        """Sum hours worked for a given week.
+        :param start_date:  Earliest date to include (inclusive).
+        :type  start_date: Union[datetime.date, str], optional.
+        :param end_date:  Latest date to include (inclusive).
+        :type  end_date: Union[datetime.date, str], optional.
+        :param aggregate: Level of aggregation to use.
+        Defaults to days; weeks, months, and years are also built-in.
+        :type aggregate: TimeAggregate.TimeAggregate , optional.
+        :return:  Dict pairing each datestamp within the aggregation
+        period to the number of hours worked.
+        :rtype: Dict[str, float]
+        """
 
         # Substitute
 
@@ -704,7 +786,18 @@ class Timesheet:
         end_date: Union[datetime.date, str] = datetime.date.max,
         aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
     ) -> None:
-        """Compute summary and save as JSON instead of returning a dict"""
+        """Compute summary and write to a JSON file.
+
+        :param output_path: Path of output JSON file.
+        :type output_path: str
+        :param start_date:  Earliest date to include (inclusive)
+        :type  start_date: Union[datetime.date, str], optional
+        :param end_date:  Latest date to include (inclusive)
+        :type  end_date: Union[datetime.date, str], optional
+        :param aggregate: Level of aggregation to use.
+        Defaults to days; weeks, months, and years are also built-in.
+        :type aggregate: TimeAggregate.TimeAggregate , optional
+        """
         summary = self.summarize(
             start_date=start_date, end_date=end_date, aggregate=aggregate
         )
@@ -718,6 +811,20 @@ class Timesheet:
         end_date: Union[datetime.date, str] = datetime.date.max,
         aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
     ) -> None:
+        """
+
+        Compute summary and write to a CSV file.
+
+        :param output_path: Path of output CSV file.
+        :type output_path: str
+        :param start_date:  Earliest date to include (inclusive)
+        :type  start_date: Union[datetime.date, str], optional
+        :param end_date:  Latest date to include (inclusive)
+        :type  end_date: Union[datetime.date, str], optional
+        :param aggregate: Level of aggregation to use.
+        Defaults to days; weeks, months, and years are also built-in.
+        :type aggregate: TimeAggregate.TimeAggregate , optional
+        """
         # Add explicit 0s for unrecorded dates bettwen start and end
         data = self.summarize(
             start_date=start_date, end_date=end_date, aggregate=aggregate
@@ -747,11 +854,16 @@ class Timesheet:
         """
         Create a :code:`Timesheet` instance from a path to a JSON representation of an instance's data.
 
-        :param data_path str: Path to a JSON file containing data for the instance, perhaps generated from another instance using :code:`write_json`.
-        :param storage_path str: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
-        :param storage_name : Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
-        :param save bool: Optional bool determining whether to save on instance creation
-        :rtype "Timesheet": Created :code:`Timesheet instance`
+        :param json_path: Path to a JSON file containing data for the instance, perhaps generated from another instance using :code:`write_json`.
+        :type json_path: str
+        :param storage_path: Optional path to :code:`shelve` file in which to store this instance. Defaults to :code:`$HOME/.timesheet/timesheets`
+        :type storage_path: Union[str, None], optional
+        :param storage_name: Optional name for this instance in the :code:`shelve` file in which it is stored. If already in use, an error is thrown.
+        :type storage_name: Union[str, None], optional
+        :param save: Optional bool determining whether to save on instance creation
+        :type save: bool, optional
+        :return: Created :code:`Timesheet instance`
+        :rtype: "Timesheet"
         """
         with open(json_path) as f:
             data = json.load(f, object_hook=utils.date_parser)
