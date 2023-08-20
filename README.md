@@ -50,9 +50,8 @@ timesheet summarize --storage_name my_timesheet --output_path ./summary.csv
 
 The Timesheet itself can be converted to a `JSON` representation using `timesheet jsonify`:
 
-```{sh}
+```sh
 timesheet jsonify --storage_name my_timesheet --data_path ./timesheet.json
-```
 ```
 By default, it sums recorded time intervals for each day between the object's
 earliest and latest recorded dates, inclusive. You can also aggregate by
