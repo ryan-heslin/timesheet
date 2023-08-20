@@ -5,7 +5,7 @@ by the hour. Times are recorded as intervals of start and stop times.
 You can install `timesheet` with:
 
 ```sh
-
+python3 -m pip install --index-url https://test.pypi.org/simple/ timesheet
 ```
 
 `timesheet` is used by invoking `timesheet` on the command
@@ -66,7 +66,7 @@ timesheet summarize --storage_name my_timesheet --output_path ./summary.csv --ag
 
 You can use the `merge` subcommand to combine two Timesheet objects.
 
-```{sh}
+```sh
 timesheet create --storage_name my_timesheet
 timesheet create --storage_name another_timesheet
 timesheet append --storage_name my_timesheet
@@ -77,12 +77,11 @@ timesheet merge --timesheets my_timesheet --timesheets another_timesheet --stora
 
 Finally, you can delete timesheets like so:
 
-```{ch}
+```sh
 timesheet delete --storage_name my_timesheet
 ```
 
-
 # Acknowledgements
 
-Docs built with [Sphinx](https://www.sphinx-doc.org/).
+Docs built with [Sphinx](https://www.sphinx-doc.org/). Project built with [Poetry](https://python-poetry.org/).
 Deployment action taken from [https://tomasfarias.dev/posts/sphinx-docs-with-poetry-and-github-pages/#specifying-the-dependencies-in-poetry](https://tomasfarias.dev/posts/sphinx-docs-with-poetry-and-github-pages/#specifying-the-dependencies-in-poetry).

@@ -11,33 +11,12 @@ from os.path import split
 from os.path import splitext
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Union
 
 import click
 
-from ..classes import TimeAggregate
-from ..classes import Timesheet
-
-
-# From https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
-def json_serialize(x : Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]) -> Union[str, "Timesheet.time_list"]:
-    """Convert datetime objects to ISO format suitable for JSON serialization
-
-    :param x: an object of one of these types
-    :type x: Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]
-    :return: If :code:`x`  is a :code:`Timesheet` instance, its :code:`timestamps`
-    attribute; otherwise, an ISO-formatted string.
-    :rtype:  Union[str, "Timesheet.time_list"]
-
-    """
-    if isinstance(x, (datetime.datetime, datetime.time)):
-        return x.isoformat()
-    elif isinstance(x, Timesheet.DayLog):
-        return x.timestamps
-    raise TypeError(f"Cannot serialize object of type {type(x)}")
 
 def path_checker(permissions : int) -> Callable:
     """Create function to check whether a user has specified permissions to use a path
@@ -56,23 +35,6 @@ def path_checker(permissions : int) -> Callable:
 path_readable = path_checker((os.R_OK))
 path_writeable = path_checker(os.W_OK | os.X_OK)
 
-def date_parser(di : Dict[str, str]) -> Dict[str, "Timesheet.DayLog"]:
-    """Parse a JSON where keys are ISO-formatted dates and values are lists of ISO-formatted times to be converted to DiffTime objects
-
-    :param di: Dict of timestamp strings in any ISO format
-    :type di: Dict[str, str]
-    :return: Dict of :code:`DayLog` objects constructed
-    from timestamps
-    :rtype: Dict[str, "Timesheet.DayLog"]
-
-    """
-
-    out = {}
-    for k, v in di.items():
-        date = datetime.date.fromisoformat(k)
-        timestamps = [Timesheet.DiffTime.fromisoformat(ts) for ts in v]
-        out[k] = Timesheet.DayLog(date=date, timestamps=timestamps)
-    return out
 
 
 def validate_datestamps(datestamps: Iterable[str]) -> bool:
@@ -184,59 +146,7 @@ class StandardCommandFactory:
             self.params.extend(__class__.included_params)
 
 
-def sum_DayLogs(
-    record: Dict[str, Timesheet.DayLog],
-    start_date: Union[datetime.date, str] = datetime.date.min,
-    end_date: Union[datetime.date, str] = datetime.date.max,
-    aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
-) -> Dict[str, float]:
-    """
-    Given a dict of :code:`DayLog` objects, summarizes hours spent at the
-    specified level of aggregation.
 
-    :param record:  Mapping of dates and DayLog
-    :type  record: Dict[str, Timesheet.DayLog]
-    objects containing timestamps
-    :param start_date:  Earliest date to include (inclusive)
-    :type  start_date: Union[datetime.date, str], optional
-    :param end_date:  Latest date to include (inclusive)
-    :type  end_date: Union[datetime.date, str], optional
-    :param aggregate: Level of aggregation to use.
-    Defaults to days; weeks, months, and years are also built-in.
-    :type aggregate: TimeAggregate.TimeAggregate , optional
-    :return:  Dict pairing each datestamp within the aggregation
-    period to the number of hours worked.
-    :rtype: Dict[str, float]
-    """
-
-    start_date = handle_date_arg(start_date)
-    end_date = handle_date_arg(end_date)
-    out = {}
-
-    # Ensure that lowest and highest found date are ultimately recorded
-    min_date = datetime.date.max
-    max_date = datetime.date.min
-
-    for datestamp, daylog in record.items():
-        this_date = aggregate.floor(datetime.date.fromisoformat(datestamp))
-        # Skip if date not in range
-        if start_date <= this_date < end_date:
-            min_date = min(this_date, min_date)
-            max_date = max(this_date, max_date)
-            key = datetime.date.strftime(this_date, aggregate.string_format.format)
-            result = out.get(key, 0) + daylog.sum_time_intervals()
-            out[key] = 0 if  result == 0.0 and isinstance(result, float) else result
-    cur_date = min_date
-
-    # Fill in omitted dates
-    if len(out) > 0:
-        while cur_date < max_date:
-            key = datetime.date.strftime(cur_date, aggregate.string_format.format)
-            out[key] = out.get(key, 0)
-            cur_date = aggregate.increment(cur_date)
-
-    # Put in sorted order
-    return {datestamp : daylog for datestamp, daylog in sorted(out.items(), key = lambda kv: kv[0])}
 
 
 # Credit https://stackoverflow.com/questions/2356399/tell-if-python-is-in-interactive-mode

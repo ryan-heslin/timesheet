@@ -168,7 +168,6 @@ def test_write_empty_csv(helpers, tmp_path):
                 )
 
 
-# TODO do these with single function
 def test_increment_day():
     new_datestamp = TimeAggregate.Day.increment(test_datestamp)
     assert (new_datestamp - test_datestamp).days == 1

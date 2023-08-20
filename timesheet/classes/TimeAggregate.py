@@ -56,10 +56,8 @@ class DateFormat():
     """
 
     def __init__(self, format : str, components : Tuple[str, ...], separator : Union[str, None] = "-") ->  None:
-        if not ((none_sep := separator is None) or separator in format):
+        if not ( separator is None or separator in format):
             raise ValueError(f"Separator {separator} not used in format {format}")
-        # if (n_split := len(format.split(separator))) != (n_components := len(components) + 1) and not none_sep:
-        #     raise ValueError(f"Format must split into {n_components} pieces, not {n_split}")
         self.format = format
         self.separator = separator
         self.components = components

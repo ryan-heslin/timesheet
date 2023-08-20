@@ -3,7 +3,6 @@ import json
 import os
 import re
 import subprocess
-from os.path import expanduser
 from tempfile import TemporaryDirectory
 from typing import Dict
 from typing import Generator
@@ -11,7 +10,6 @@ from typing import Generator
 import pytest
 
 from timesheet.classes import Timesheet
-from timesheet.utils import constants
 
 temp_dir = TemporaryDirectory()
 
@@ -134,7 +132,6 @@ class Helpers:
         """Create empty file"""
         open(path, "a").close()
 
-    #TODO coroutine
     @staticmethod
     def test_path(*args):
         return "/".join(str(arg) for arg in [*args])

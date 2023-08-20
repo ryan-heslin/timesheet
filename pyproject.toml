@@ -1,13 +1,13 @@
 [project]
 name = "timesheet_rheslin"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Ryan Heslin", email="rwheslin@gmail.com" },
 ]
 description = "Command-line utility to track hours worked"
 long_description = "file: README.md"
 long_description_content_type = "text/markdown"
-url = "https://github.com/pypa/timesheet-rheslin"
+url = "https://github.com/pypa/timesheet"
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.8"

@@ -14,7 +14,6 @@ from os.path import split
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import TypeVar
 from typing import Union
 
 from . import TimeAggregate
@@ -746,7 +745,7 @@ class Timesheet:
         if not exists(storage_dir) and make_directory:
             makedirs(storage_dir)
         with open(path, "w") as f:
-            json.dump(self.record, f, default=utils.json_serialize)
+            json.dump(self.record, f, default=json_serialize)
 
         return self
 
@@ -768,11 +767,8 @@ class Timesheet:
         period to the number of hours worked.
         :rtype: Dict[str, float]
         """
-
-        # Substitute
-
         # Weeks start on Monday, indexed 1
-        return utils.sum_DayLogs(
+        return sum_DayLogs(
             start_date=start_date,
             end_date=end_date,
             aggregate=aggregate,
@@ -866,7 +862,7 @@ class Timesheet:
         :rtype: "Timesheet"
         """
         with open(json_path) as f:
-            data = json.load(f, object_hook=utils.date_parser)
+            data = json.load(f, object_hook=date_parser)
         instance = cls.__new__(cls)
         instance._constructor(
             data=data,
@@ -877,3 +873,91 @@ class Timesheet:
             output_path=output_path
         )
         return instance
+# From https://stackoverflow.com/questions/11875770/how-to-overcome-datetime-datetime-not-json-serializable
+def json_serialize(x : Union[datetime.datetime, datetime.time, "DayLog"]) -> Union[str, "time_list"]:
+    """Convert datetime objects to ISO format suitable for JSON serialization
+
+    :param x: an object of one of these types
+    :type x: Union[datetime.datetime, datetime.time, "Timesheet.DayLog"]
+    :return: If :code:`x`  is a :code:`Timesheet` instance, its :code:`timestamps`
+    attribute; otherwise, an ISO-formatted string.
+    :rtype:  Union[str, "Timesheet.time_list"]
+
+    """
+    if isinstance(x, (datetime.datetime, datetime.time)):
+        return x.isoformat()
+    elif isinstance(x, DayLog):
+        return x.timestamps
+    raise TypeError(f"Cannot serialize object of type {type(x)}")
+
+def date_parser(di : Dict[str, str]) -> Dict[str, "DayLog"]:
+    """Parse a JSON where keys are ISO-formatted dates and values are lists of ISO-formatted times to be converted to DiffTime objects
+
+    :param di: Dict of timestamp strings in any ISO format
+    :type di: Dict[str, str]
+    :return: Dict of :code:`DayLog` objects constructed
+    from timestamps
+    :rtype: Dict[str, "Timesheet.DayLog"]
+
+    """
+
+    out = {}
+    for k, v in di.items():
+        date = datetime.date.fromisoformat(k)
+        timestamps = [DiffTime.fromisoformat(ts) for ts in v]
+        out[k] = DayLog(date=date, timestamps=timestamps)
+    return out
+
+def sum_DayLogs(
+    record: Dict[str, DayLog],
+    start_date: Union[datetime.date, str] = datetime.date.min,
+    end_date: Union[datetime.date, str] = datetime.date.max,
+    aggregate: TimeAggregate.TimeAggregate = TimeAggregate.Day,
+) -> Dict[str, float]:
+    """
+    Given a dict of :code:`DayLog` objects, summarizes hours spent at the
+    specified level of aggregation.
+
+    :param record:  Mapping of dates and DayLog
+    :type  record: Dict[str, Timesheet.DayLog]
+    objects containing timestamps
+    :param start_date:  Earliest date to include (inclusive)
+    :type  start_date: Union[datetime.date, str], optional
+    :param end_date:  Latest date to include (inclusive)
+    :type  end_date: Union[datetime.date, str], optional
+    :param aggregate: Level of aggregation to use.
+    Defaults to days; weeks, months, and years are also built-in.
+    :type aggregate: TimeAggregate.TimeAggregate , optional
+    :return:  Dict pairing each datestamp within the aggregation
+    period to the number of hours worked.
+    :rtype: Dict[str, float]
+    """
+
+    start_date = utils.handle_date_arg(start_date)
+    end_date = utils.handle_date_arg(end_date)
+    out = {}
+
+    # Ensure that lowest and highest found date are ultimately recorded
+    min_date = datetime.date.max
+    max_date = datetime.date.min
+
+    for datestamp, daylog in record.items():
+        this_date = aggregate.floor(datetime.date.fromisoformat(datestamp))
+        # Skip if date not in range
+        if start_date <= this_date < end_date:
+            min_date = min(this_date, min_date)
+            max_date = max(this_date, max_date)
+            key = datetime.date.strftime(this_date, aggregate.string_format.format)
+            result = out.get(key, 0) + daylog.sum_time_intervals()
+            out[key] = 0 if  result == 0.0 and isinstance(result, float) else result
+    cur_date = min_date
+
+    # Fill in omitted dates
+    if len(out) > 0:
+        while cur_date < max_date:
+            key = datetime.date.strftime(cur_date, aggregate.string_format.format)
+            out[key] = out.get(key, 0)
+            cur_date = aggregate.increment(cur_date)
+
+    # Put in sorted order
+    return {datestamp : daylog for datestamp, daylog in sorted(out.items(), key = lambda kv: kv[0])}
